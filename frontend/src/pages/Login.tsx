@@ -2,15 +2,18 @@ import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 
 const handleSuccess = async (credentialResponse: CredentialResponse) => {
   try {
-    const response = await fetch("/api/google", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
+    const response = await fetch(
+      `${import.meta.env.VITE_API_BASE_URL}/api/google`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          token: credentialResponse.credential,
+        }),
       },
-      body: JSON.stringify({
-        token: credentialResponse.credential,
-      }),
-    });
+    );
     if (!response.ok) {
       throw new Error(`Server responded with status: ${response.status}`);
     }

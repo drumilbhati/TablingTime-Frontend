@@ -1,7 +1,9 @@
 import { Button } from "@/components/ui/button";
 import { useGoogleLogin, type CodeResponse } from "@react-oauth/google";
+import { useNavigate } from "react-router-dom";
 
 const Login = () => {
+  const navigate = useNavigate();
   // 1. Move the hook inside the component
   const login = useGoogleLogin({
     onSuccess: async (codeResponse: CodeResponse) => {
@@ -27,6 +29,13 @@ const Login = () => {
         }
 
         const data = await response.json();
+        if (data.token) {
+          // Save to localStorage
+          localStorage.setItem("token", data.token);
+          localStorage.setItem("user", JSON.stringify(data.user));
+
+          navigate("/");
+        }
         console.log("Login returned data: ", data);
       } catch (error) {
         console.error("Login failed:", error);

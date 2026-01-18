@@ -10,7 +10,7 @@ const Login = () => {
 
         // 2. Send the 'code' to your backend
         const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/api/auth/google`, // Match your backend route
+          `${import.meta.env.VITE_API_BASE_URL}/auth/google`, // Match your backend route
           {
             method: "POST",
             headers: {

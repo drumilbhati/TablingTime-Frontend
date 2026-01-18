@@ -186,3 +186,35 @@ button:focus-visible {
     @apply bg-background text-foreground;
   }
 }
+
+.timetable-container {
+  display: grid;
+  /* Creates 7 columns of equal width */
+  grid-template-columns: repeat(7, 1fr);
+  border: 1px dashed #000;
+  border-radius: 12px;
+  overflow: hidden; /* Keeps the corners rounded */
+}
+
+.cell {
+  padding: 20px;
+  text-align: center;
+  border-right: 1px dashed #ccc;
+  border-bottom: 1px dashed #ccc;
+  min-height: 60px;
+}
+
+/* Removes the right border for the last cell in every row */
+.cell:nth-child(7n) {
+  border-right: none;
+}
+
+.header-cell {
+  font-weight: bold;
+  background-color: #fafafa;
+}
+
+.empty-slot:hover {
+  background-color: #f0f0f0;
+  cursor: pointer;
+}

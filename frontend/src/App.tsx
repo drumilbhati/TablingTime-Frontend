@@ -1,12 +1,22 @@
-import './App.css'
-import Navbar from './components/Navbar.tsx';
+import "./App.css";
+import Navbar from "./components/Navbar.tsx";
+import { Route, Routes } from "react-router-dom";
+import Login from "./pages/Login.tsx";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 function App() {
   return (
-    <div className='fixed top:0 left:0 w-full'>
-      <Navbar />
+    <div>
+      <GoogleOAuthProvider clientId="169828270266-4rvkkr0t2p9l1l8g74akau8k5e4peprn.apps.googleusercontent.com">
+        <Navbar />
+        <main className="content-main">
+          <Routes>
+            <Route path="/login" element={<Login />}></Route>
+          </Routes>
+        </main>
+      </GoogleOAuthProvider>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

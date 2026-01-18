@@ -3,7 +3,7 @@ import { GoogleLogin, type CredentialResponse } from "@react-oauth/google";
 const handleSuccess = async (credentialResponse: CredentialResponse) => {
   try {
     const response = await fetch(
-      `${import.meta.env.VITE_API_BASE_URL}/api/google`,
+      `${import.meta.env.VITE_API_BASE_URL}/auth/google`,
       {
         method: "POST",
         headers: {

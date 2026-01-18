@@ -1,8 +1,11 @@
+import { Button } from "./ui/button";
+
 const Navbar = () => {
   return (
-    <h1>TablingTime</h1>
-  //  <Button>Login</Button>
-
+    <div className="flex flex-row">
+      <h1 className="text-[30px]!">TablingTime</h1>
+      <Button>Login</Button>
+    </div>
   );
 }
 export default Navbar;

@@ -191,17 +191,20 @@ button:focus-visible {
   display: grid;
   /* Creates 7 columns of equal width */
   grid-template-columns: repeat(7, 1fr);
-  border: 1px dashed #000;
-  border-radius: 12px;
-  overflow: hidden; /* Keeps the corners rounded */
+  border: 2px solid #e5e7eb;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+  background: white;
 }
 
 .cell {
   padding: 20px;
   text-align: center;
-  border-right: 1px dashed #ccc;
-  border-bottom: 1px dashed #ccc;
-  min-height: 60px;
+  border-right: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e5e7eb;
+  min-height: 70px;
+  transition: all 0.3s ease;
 }
 
 /* Removes the right border for the last cell in every row */
@@ -210,11 +213,24 @@ button:focus-visible {
 }
 
 .header-cell {
-  font-weight: bold;
-  background-color: #fafafa;
+  font-weight: 700;
+  background: linear-gradient(135deg, #38bdf8 0%, #3b82f6 100%);
+  color: white;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.time-label {
+  font-weight: 600;
+  background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+  color: #374151;
+  border-right: 2px solid #e5e7eb;
 }
 
 .empty-slot:hover {
-  background-color: #f0f0f0;
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
   cursor: pointer;
+  transform: scale(1.02);
+  box-shadow: inset 0 0 0 2px #60a5fa;
 }

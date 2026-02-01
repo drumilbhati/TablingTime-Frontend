@@ -45,9 +45,9 @@ const Login = () => {
   });
 
   return (
-    <Button className="font-bold" onClick={() => login()}>
-      Login with Google
-    </Button>
+    <div className="flex justify-center items-center h-svh">
+      <Button onClick={() => login()}>Login with Google</Button>
+    </div>
   );
 };
 

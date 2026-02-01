@@ -12,7 +12,7 @@ const Navbar = () => {
           TablingTime
         </div>
         <button
-          className="px-4 py-2 text-sm font-medium text-white border border-gray-300 bg-white rounded-md hover:text-gray-200 transition-colors"
+          className="px-4 py-2 text-sm font-medium text-white bg-gray-900 border border-gray-900 rounded-md hover:bg-gray-800 transition-colors"
           onClick={() => navigate("/login")}
         >
           Login

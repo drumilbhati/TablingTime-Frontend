@@ -56,7 +56,7 @@ const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
             className={`w-full text-left p-4 rounded-lg border transition-all ${
               selectedCourse === course.id
                 ? "bg-gray-900 text-white border-gray-900 shadow-md"
-                : "bg-white text-white border-gray-900 hover:border-gray-300 hover:shadow-sm"
+                : "bg-white text-gray-700 border-gray-200 hover:border-gray-300 hover:shadow-sm"
             }`}
           >
             <div className="flex items-start gap-3">

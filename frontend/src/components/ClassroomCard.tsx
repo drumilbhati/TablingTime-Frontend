@@ -1,5 +1,3 @@
-import React from "react";
-
 interface Classroom {
   id: string;
   building: string;

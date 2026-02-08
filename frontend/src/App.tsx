@@ -4,6 +4,7 @@ import { Route, Routes } from "react-router-dom";
 import Login from "./pages/Login.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import OccupiedRooms from "./components/OccupiedRooms.tsx";
 
 function App() {
   return (
@@ -13,6 +14,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Dashboard />}></Route>
           <Route path="/login" element={<Login />}></Route>
+          <Route path="/classrooms" element={<OccupiedRooms />}></Route>
         </Routes>
       </div>
     </GoogleOAuthProvider>

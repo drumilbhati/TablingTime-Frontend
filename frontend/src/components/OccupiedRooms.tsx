@@ -29,13 +29,20 @@ interface CourseData {
   timeslots: TimeSlot[];
 }
 
-const OccupiedRooms = () => {
+interface OccupiedRoomsProps {
+  selectedDay?: string;
+  selectedStartTime?: string;
+  selectedEndTime?: string;
+}
+
+const OccupiedRooms = ({
+  selectedDay = "",
+  selectedStartTime = "",
+  selectedEndTime = "",
+}: OccupiedRoomsProps) => {
   const [courses, setCourses] = useState<CourseData[]>([]);
-  const [filteredCourses, setFileteredCourses] = useState<CourseData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<string>("");
-  const [selectedStartTime, setSelectedStartTime] = useState<string>("");
-  const [selectedEndTime, setSelectedEndTime] = useState<string>("");
+  const [filteredCourses, setFilteredCourses] = useState<CourseData[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -55,7 +62,7 @@ const OccupiedRooms = () => {
 
   useEffect(() => {
     if (!selectedDay || !selectedStartTime || !selectedEndTime) {
-      setFileteredCourses(courses);
+      setFilteredCourses(courses);
       return;
     }
 
@@ -78,64 +85,80 @@ const OccupiedRooms = () => {
       });
     });
 
-    setFileteredCourses(filtered);
+    setFilteredCourses(filtered);
   }, [courses, selectedDay, selectedStartTime, selectedEndTime]);
 
   return (
     <div className="w-full">
-      {/*Header*/}
-      <div className="mb-4">
-        <h2 className="text-2xl font-semibold text-gray-900">Classrooms</h2>
-        {selectedDay && selectedStartTime && selectedEndTime && (
-          <p className="text-sm text-gray-600 mt-1">
-            {selectedDay} - {selectedStartTime} : {selectedEndTime}
-          </p>
-        )}
-      </div>
+      {loading && <div className="p-4 text-gray-500">Loading courses...</div>}
 
-      {/*Table*/}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-auto">
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="bg-gray-50">
-              <th className="border-b border-r border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-600">
-                Course Code
-              </th>
-              <th className="border-b border-r border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-600">
-                Course Name
-              </th>
-              <th className="border-b border-r border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-600">
-                Faculty
-              </th>
-              <th className="border-b border-r border-gray-200 px-4 py-3 text-center text-sm font-semibold text-gray-600">
-                Students
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* TODO: Map over filteredCourses and render each row */}
-            {filteredCourses.map((course, idx) => (
-              <tr
-                key={course._id}
-                className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-              >
-                <td className="border-b border-r border-gray-200 px-4 py-3 text-sm">
-                  {/* TODO: Display course.courseId */}
-                </td>
-                <td className="border-b border-r border-gray-200 px-4 py-3 text-sm">
-                  {/* TODO: Display course["Course Name"] */}
-                </td>
-                <td className="border-b border-r border-gray-200 px-4 py-3 text-sm">
-                  {/* TODO: Display course.Faculty */}
-                </td>
-                <td className="border-b border-gray-200 px-4 py-3 text-center text-sm">
-                  {/* TODO: Display number of students: course.studentId.length */}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {!loading && (
+        <>
+          {/*Header*/}
+          <div className="mb-4">
+            <h2 className="text-2xl font-semibold text-gray-900">Classrooms</h2>
+            {selectedDay && selectedStartTime && selectedEndTime && (
+              <p className="text-sm text-gray-600 mt-1">
+                {selectedDay} - {selectedStartTime} : {selectedEndTime}
+              </p>
+            )}
+          </div>
+
+          {/*Table*/}
+          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-auto">
+            <table className="w-full border-collapse">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border-b border-r border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-600">
+                    Course Code
+                  </th>
+                  <th className="border-b border-r border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-600">
+                    Course Name
+                  </th>
+                  <th className="border-b border-r border-gray-200 px-4 py-3 text-left text-sm font-semibold text-gray-600">
+                    Faculty
+                  </th>
+                  <th className="border-b border-r border-gray-200 px-4 py-3 text-center text-sm font-semibold text-gray-600">
+                    Students
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredCourses.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={4}
+                      className="border-b border-gray-200 px-4 py-4 text-center text-gray-500"
+                    >
+                      No courses scheduled
+                    </td>
+                  </tr>
+                ) : (
+                  filteredCourses.map((course, idx) => (
+                    <tr
+                      key={course._id}
+                      className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
+                    >
+                      <td className="border-b border-r border-gray-200 px-4 py-3 text-sm">
+                        {course.courseId}
+                      </td>
+                      <td className="border-b border-r border-gray-200 px-4 py-3 text-sm">
+                        {course["Course Name"]}
+                      </td>
+                      <td className="border-b border-r border-gray-200 px-4 py-3 text-sm">
+                        {course.Faculty}
+                      </td>
+                      <td className="border-b border-gray-200 px-4 py-3 text-center text-sm">
+                        {course.studentId.length}
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 };

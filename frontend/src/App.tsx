@@ -4,7 +4,7 @@ import { Route, Routes } from "react-router-dom";
 import Login from "./pages/Login.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
 import { GoogleOAuthProvider } from "@react-oauth/google";
-import OccupiedRooms from "./components/OccupiedRooms.tsx";
+import OccupiedRooms from "./pages/OccupiedRooms.tsx";
 
 function App() {
   return (

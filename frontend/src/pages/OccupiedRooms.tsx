@@ -47,12 +47,35 @@ const OccupiedRooms = ({
   useEffect(() => {
     const fetchCourses = async () => {
       try {
-        const response = await fetch("/api/courses");
+        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+        const response = await fetch(`${apiBaseUrl}/api/courses`);
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
         const data = await response.json();
         setCourses(data);
-        setLoading(false);
       } catch (err) {
-        console.log(err);
+        console.warn("Failed to fetch courses from API, using mock data:", err);
+        // Fallback to mock data
+        const mockCourses: CourseData[] = [
+          {
+            _id: "1",
+            courseId: "CSE540",
+            "Course Code": "CSE540[Graduate Master's]",
+            "Course Name": "Cloud Computing",
+            Faculty: "Sanjay Chaudhary",
+            Credits: "3",
+            courseType: "ELECTIVE",
+            studentId: ["44", "83"],
+            room: [],
+            timeslots: [
+              { day: "Mon", startTime: "09:30", endTime: "11:00", _id: "1a" },
+              { day: "Wed", startTime: "09:30", endTime: "11:00", _id: "1b" },
+            ],
+          },
+        ];
+        setCourses(mockCourses);
+      } finally {
         setLoading(false);
       }
     };

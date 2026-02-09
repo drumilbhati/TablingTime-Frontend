@@ -1,10 +1,11 @@
 import "./App.css";
 import Navbar from "./components/Navbar.tsx";
-import { Route, Routes } from "react-router-dom";
+import { Route, Routes, Navigate } from "react-router-dom";
 import Login from "./pages/Login.tsx";
-import Dashboard from "./pages/Dashboard.tsx";
-import { GoogleOAuthProvider } from "@react-oauth/google";
+import TimetablePage from "./pages/TimetablePage.tsx";
+import ClassroomsPage from "./pages/ClassroomsPage.tsx";
 import OccupiedRooms from "./pages/OccupiedRooms.tsx";
+import { GoogleOAuthProvider } from "@react-oauth/google";
 
 function App() {
   return (
@@ -12,9 +13,11 @@ function App() {
       <div className="min-h-screen">
         <Navbar />
         <Routes>
-          <Route path="/" element={<Dashboard />}></Route>
+          <Route path="/" element={<Navigate to="/timetable" replace />}></Route>
+          <Route path="/timetable" element={<TimetablePage />}></Route>
+          <Route path="/classrooms" element={<ClassroomsPage />}></Route>
+          <Route path="/occupied" element={<OccupiedRooms />}></Route>
           <Route path="/login" element={<Login />}></Route>
-          <Route path="/classrooms" element={<OccupiedRooms />}></Route>
         </Routes>
       </div>
     </GoogleOAuthProvider>

@@ -12,6 +12,8 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ["tabling-time-abl-791018269.eu-north-1.elb.amazonaws.com"],
+    host: "0.0.0.0",
+    port: 5173,
+    allowedHosts: true,
   },
 });

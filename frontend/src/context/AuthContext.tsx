@@ -4,6 +4,9 @@ import { useGoogleLogin, type CodeResponse } from "@react-oauth/google";
 interface AuthContextType {
   isAuthenticated: boolean;
   userRole: "admin" | "student" | "faculty" | null;
+  userName: string | null;
+  userId: string | null;
+  authLoading: boolean;
   login: () => void;
   logout: () => void;
 }
@@ -17,31 +20,88 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [userRole, setUserRole] = useState<
     "admin" | "student" | "faculty" | null
   >(null);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  // authLoading stays true until the /auth/role check completes, so the UI
+  // doesn't flash a "logged out" state before the token is validated.
+  const [authLoading, setAuthLoading] = useState(true);
 
-  // on mount, rehydrate auth state from localStorage
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const userRaw = localStorage.getItem("user");
-    if (token && userRaw) {
+    const validateToken = async () => {
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        // No token stored — definitely logged out, nothing to validate.
+        setAuthLoading(false);
+        return;
+      }
+
+      // Optimistically apply the cached role from localStorage while the
+      // network request is in flight, so the navbar doesn't flicker.
       try {
-        const user = JSON.parse(userRaw);
-        setIsAuthenticated(true);
-        setUserRole(user?.role ?? null);
+        const cachedUser = JSON.parse(localStorage.getItem("user") ?? "{}");
+        if (cachedUser?.role) {
+          setIsAuthenticated(true);
+          setUserRole(cachedUser.role);
+          setUserName(cachedUser.name ?? null);
+          setUserId(cachedUser._id ?? null);
+        }
       } catch {
+        // Ignore malformed cache — the server response is authoritative.
+      }
+
+      // Confirm with the server that the token is still valid and get the
+      // canonical role (in case it was updated since the token was issued).
+      try {
+        const res = await fetch(
+          `${import.meta.env.VITE_API_BASE_URL}/auth/role`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+
+        if (!res.ok) {
+          // 401 = expired/invalid token, 404 = user deleted — either way, log out.
+          throw new Error(`Status ${res.status}`);
+        }
+
+        const data = await res.json();
+        setIsAuthenticated(true);
+        setUserRole(data.role);
+
+        // Keep the cached user object's role in sync.
+        try {
+          const cachedUser = JSON.parse(localStorage.getItem("user") ?? "{}");
+          const updatedUser = { ...cachedUser, role: data.role };
+          localStorage.setItem("user", JSON.stringify(updatedUser));
+          setUserName(updatedUser.name ?? null);
+          setUserId(updatedUser._id ?? null);
+        } catch {
+          // Non-critical — best effort cache update.
+        }
+      } catch (err) {
+        console.warn("Token validation failed, logging out:", err);
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
         setIsAuthenticated(false);
         setUserRole(null);
+        setUserName(null);
+        setUserId(null);
+      } finally {
+        setAuthLoading(false);
       }
-    }
+    };
+
+    validateToken();
   }, []);
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (codeResponse: CodeResponse) => {
       try {
-        console.log("Auth Code received:", codeResponse.code);
-
-        // 2. Send the 'code' to your backend
         const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/auth/google`, // Match your backend route
+          `${import.meta.env.VITE_API_BASE_URL}/auth/google`,
           {
             method: "POST",
             headers: {
@@ -59,19 +119,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const data = await response.json();
         if (data.token) {
-          // Save to localStorage
           localStorage.setItem("token", data.token);
           localStorage.setItem("user", JSON.stringify(data.user));
 
           setIsAuthenticated(true);
-          setUserRole(data.user?.role);
+          setUserRole(data.user?.role ?? null);
+          setUserName(data.user?.name ?? null);
+          setUserId(data.user?._id ?? null);
         }
-        console.log("Login returned data: ", data);
       } catch (error) {
         console.error("Login failed:", error);
       }
     },
-    flow: "auth-code", // Required to get the 'code' your backend wants
+    flow: "auth-code",
     onError: (errorResponse) => console.error("Login Failed:", errorResponse),
   });
 
@@ -80,13 +140,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   };
 
   const logout = () => {
-    localStorage.clear();
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
     setIsAuthenticated(false);
     setUserRole(null);
+    setUserName(null);
+    setUserId(null);
   };
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, userRole, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        isAuthenticated,
+        userRole,
+        userName,
+        userId,
+        authLoading,
+        login,
+        logout,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -95,6 +168,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 // eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => {
   const ctx = useContext(AuthContext);
-  if (!ctx) throw new Error("useAuth must be available inside AuthProvider");
+  if (!ctx) throw new Error("useAuth must be used inside AuthProvider");
   return ctx;
 };

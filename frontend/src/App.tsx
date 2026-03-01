@@ -8,6 +8,21 @@ import OccupiedRooms from "./pages/OccupiedRooms.tsx";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "./context/AuthContext.tsx";
 import { CoursesProvider } from "./context/CoursesContext.tsx";
+import { useAuth } from "./context/AuthContext.tsx";
+
+// Redirects non-admin users away from admin-only routes.
+// Shows nothing while auth is still loading to avoid a flash redirect.
+const AdminRoute = ({ children }: { children: React.ReactNode }) => {
+  const { isAuthenticated, userRole, authLoading } = useAuth();
+
+  if (authLoading) return null;
+
+  if (!isAuthenticated || userRole !== "admin") {
+    return <Navigate to="/timetable" replace />;
+  }
+
+  return <>{children}</>;
+};
 
 function App() {
   return (
@@ -19,8 +34,22 @@ function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/timetable" replace />} />
               <Route path="/timetable" element={<TimetablePage />} />
-              <Route path="/classrooms" element={<ClassroomsPage />} />
-              <Route path="/occupied" element={<OccupiedRooms />} />
+              <Route
+                path="/classrooms"
+                element={
+                  <AdminRoute>
+                    <ClassroomsPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/occupied"
+                element={
+                  <AdminRoute>
+                    <OccupiedRooms />
+                  </AdminRoute>
+                }
+              />
               <Route path="/login" element={<Login />} />
             </Routes>
           </div>

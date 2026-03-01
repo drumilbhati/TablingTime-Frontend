@@ -4,9 +4,12 @@ import { useAuth } from "../context/AuthContext";
 const Navbar = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated, userRole, login, logout } = useAuth();
+  const { isAuthenticated, userRole, userName, authLoading, login, logout } =
+    useAuth();
 
   const isActive = (path: string) => location.pathname === path;
+
+  const isAdmin = userRole === "admin";
 
   const getRoleBadgeStyle = (role: string) => {
     switch (role) {
@@ -44,38 +47,53 @@ const Navbar = () => {
           >
             Timetable
           </button>
-          <button
-            onClick={() => navigate("/classrooms")}
-            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-              isActive("/classrooms")
-                ? "text-black border-b-2 border-black"
-                : "text-gray-600 hover:text-black"
-            }`}
-          >
-            Classrooms
-          </button>
-          <button
-            onClick={() => navigate("/occupied")}
-            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-              isActive("/occupied")
-                ? "text-black border-b-2 border-black"
-                : "text-gray-600 hover:text-black"
-            }`}
-          >
-            Occupied Rooms
-          </button>
+
+          {/* Admin-only nav links */}
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => navigate("/classrooms")}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  isActive("/classrooms")
+                    ? "text-black border-b-2 border-black"
+                    : "text-gray-600 hover:text-black"
+                }`}
+              >
+                Classrooms
+              </button>
+              <button
+                onClick={() => navigate("/occupied")}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  isActive("/occupied")
+                    ? "text-black border-b-2 border-black"
+                    : "text-gray-600 hover:text-black"
+                }`}
+              >
+                Occupied Rooms
+              </button>
+            </>
+          )}
 
           {/* Auth section */}
-          {isAuthenticated ? (
+          {authLoading ? (
+            <div className="w-32 h-9 bg-gray-100 rounded-md animate-pulse" />
+          ) : isAuthenticated ? (
             <div className="flex items-center gap-3">
-              {/* Role badge */}
-              {userRole && (
-                <span
-                  className={`px-2.5 py-1 text-xs font-semibold rounded-full border capitalize ${getRoleBadgeStyle(userRole)}`}
-                >
-                  {userRole}
-                </span>
-              )}
+              {/* Name + role */}
+              <div className="flex flex-col items-end">
+                {userName && (
+                  <span className="text-sm font-medium text-gray-900 leading-tight">
+                    {userName}
+                  </span>
+                )}
+                {userRole && (
+                  <span
+                    className={`text-xs font-semibold px-2 py-0.5 rounded-full border capitalize mt-0.5 ${getRoleBadgeStyle(userRole)}`}
+                  >
+                    {userRole}
+                  </span>
+                )}
+              </div>
 
               {/* Logout button */}
               <button

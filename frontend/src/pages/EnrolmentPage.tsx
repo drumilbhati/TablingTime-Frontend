@@ -263,7 +263,7 @@ const EnrolmentPage = () => {
       const token = localStorage.getItem("token");
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
-      const res = await fetch(`${apiBaseUrl}/api/users/all-users`, {
+      const res = await fetch(`${apiBaseUrl}/api/admin/all-users`, {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },

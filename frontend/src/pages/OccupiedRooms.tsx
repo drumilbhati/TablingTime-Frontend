@@ -6,35 +6,13 @@
   output: list of (courses, room)
 */
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
-
-// represents a single timeslot
-interface TimeSlot {
-  day: string;
-  startTime: string;
-  endTime: string;
-  _id: string;
-}
-
-interface CourseData {
-  _id: string;
-  courseId: string;
-  "Course Code": string;
-  "Course Name": string;
-  Faculty: string;
-  Credits: string;
-  courseType: string;
-  studentId: string[];
-  room: string[];
-  timeslots: TimeSlot[];
-}
-
-interface OccupiedRoomsProps {
-  selectedDay?: string;
-  selectedStartTime?: string;
-  selectedEndTime?: string;
-}
+import {
+  useCourses,
+  type Course as CourseData,
+} from "../context/CoursesContext";
+import ErrorState from "../components/ErrorState";
 
 interface TimeslotKey {
   day: string;
@@ -42,61 +20,19 @@ interface TimeslotKey {
   endTime: string;
 }
 
-const OccupiedRooms = ({
-  selectedDay = "",
-  selectedStartTime = "",
-  selectedEndTime = "",
-}: OccupiedRoomsProps) => {
-  const [courses, setCourses] = useState<CourseData[]>([]);
-  const [loading, setLoading] = useState(true);
+const OccupiedRooms = () => {
+  const { courses, loading, error, refetch } = useCourses();
   const [selectedTimeslot, setSelectedTimeslot] = useState<TimeslotKey | null>(
     null,
   );
 
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-        const response = await fetch(`${apiBaseUrl}/api/courses`);
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status}`);
-        }
-        const data = await response.json();
-        setCourses(data);
-      } catch (err) {
-        console.warn("Failed to fetch courses from API, using mock data:", err);
-        // Fallback to mock data
-        const mockCourses: CourseData[] = [
-          {
-            _id: "1",
-            courseId: "CSE540",
-            "Course Code": "CSE540[Graduate Master's]",
-            "Course Name": "Cloud Computing",
-            Faculty: "Sanjay Chaudhary",
-            Credits: "3",
-            courseType: "ELECTIVE",
-            studentId: ["44", "83"],
-            room: [],
-            timeslots: [
-              { day: "Mon", startTime: "09:30", endTime: "11:00", _id: "1a" },
-              { day: "Wed", startTime: "09:30", endTime: "11:00", _id: "1b" },
-            ],
-          },
-        ];
-        setCourses(mockCourses);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCourses();
-  }, []);
-
-  useEffect(() => {
-    if (!selectedDay || !selectedStartTime || !selectedEndTime) {
-      return;
-    }
-  }, [courses, selectedDay, selectedStartTime, selectedEndTime]);
+  if (error) {
+    return (
+      <div className="w-full flex flex-col h-[calc(100svh-73px)] bg-white">
+        <ErrorState error={error} onRetry={refetch} />
+      </div>
+    );
+  }
 
   // Extract unique timeslots and sort them
   const getUniqueTimeslots = (): TimeslotKey[] => {

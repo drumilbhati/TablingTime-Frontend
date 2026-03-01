@@ -1,91 +1,15 @@
-import { useState, useEffect } from "react";
-
-interface Course {
-  _id: string;
-  courseId: string;
-  "Course Code": string;
-  "Course Name": string;
-  Faculty: string;
-  Credits: string;
-  courseType: string;
-}
+import { useState } from "react";
+import { useCourses } from "../context/CoursesContext";
+import ErrorState from "./ErrorState";
 
 interface SidebarProps {
   selectedCourse: string | null;
   onSelectCourse: (courseId: string) => void;
 }
 
-const MOCK_COURSES: Course[] = [
-  {
-    _id: "1",
-    courseId: "CS101",
-    "Course Code": "CS101",
-    "Course Name": "Data Structures",
-    Faculty: "Prof. Smith",
-    Credits: "3",
-    courseType: "CORE",
-  },
-  {
-    _id: "2",
-    courseId: "CS102",
-    "Course Code": "CS102",
-    "Course Name": "Algorithms",
-    Faculty: "Prof. Jones",
-    Credits: "3",
-    courseType: "CORE",
-  },
-  {
-    _id: "3",
-    courseId: "CS201",
-    "Course Code": "CS201",
-    "Course Name": "Database Systems",
-    Faculty: "Prof. Lee",
-    Credits: "3",
-    courseType: "CORE",
-  },
-  {
-    _id: "4",
-    courseId: "CS202",
-    "Course Code": "CS202",
-    "Course Name": "Operating Systems",
-    Faculty: "Prof. Brown",
-    Credits: "3",
-    courseType: "CORE",
-  },
-  {
-    _id: "5",
-    courseId: "CS301",
-    "Course Code": "CS301",
-    "Course Name": "Software Engineering",
-    Faculty: "Prof. Davis",
-    Credits: "3",
-    courseType: "ELECTIVE",
-  },
-];
-
 const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { courses, loading, error, refetch } = useCourses();
   const [searchQuery, setSearchQuery] = useState("");
-
-  useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-        const response = await fetch(`${apiBaseUrl}/api/courses`);
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        const data: Course[] = await response.json();
-        setCourses(data);
-      } catch (err) {
-        console.warn("Failed to fetch courses from API, using mock data:", err);
-        setCourses(MOCK_COURSES);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCourses();
-  }, []);
 
   const filteredCourses = courses.filter((course) => {
     const q = searchQuery.toLowerCase();
@@ -95,6 +19,14 @@ const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
       course["Course Code"].toLowerCase().includes(q)
     );
   });
+
+  if (error) {
+    return (
+      <div className="flex flex-col h-full">
+        <ErrorState error={error} onRetry={refetch} />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 flex flex-col h-full">

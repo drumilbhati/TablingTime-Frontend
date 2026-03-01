@@ -11,18 +11,4 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  server: {
-    proxy: {
-      "/api": {
-        target: "https://tablingtime-backend.onrender.com/",
-        changeOrigin: true,
-        secure: false,
-      },
-      "/auth": {
-        target: "https://tablingtime-backend.onrender.com/",
-        changeOrigin: true,
-        secure: false,
-      },
-    },
-  },
 });

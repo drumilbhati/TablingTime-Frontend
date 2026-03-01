@@ -18,26 +18,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     "admin" | "student" | "faculty" | null
   >(null);
 
-  // on mount, check token validity with server
+  // on mount, rehydrate auth state from localStorage
   useEffect(() => {
-    const checkAuth = async () => {
+    const token = localStorage.getItem("token");
+    const userRaw = localStorage.getItem("user");
+    if (token && userRaw) {
       try {
-        // pretend to validate token
-        const res = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/api/auth/validate`,
-        );
-        if (!res.ok) throw new Error("Validation failed");
-
-        const data = await res.json();
-        setIsAuthenticated(data.ok);
-        setUserRole(data.role);
+        const user = JSON.parse(userRaw);
+        setIsAuthenticated(true);
+        setUserRole(user?.role ?? null);
       } catch {
         setIsAuthenticated(false);
         setUserRole(null);
       }
-    };
-
-    checkAuth();
+    }
   }, []);
 
   const googleLogin = useGoogleLogin({

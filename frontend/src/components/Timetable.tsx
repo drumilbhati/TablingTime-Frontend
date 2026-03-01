@@ -1,24 +1,6 @@
-import { useState, useEffect } from "react";
-
-interface TimeSlot {
-  day: string;
-  startTime: string;
-  endTime: string;
-  _id: string;
-}
-
-interface Course {
-  _id: string;
-  courseId: string;
-  "Course Code": string;
-  "Course Name": string;
-  Faculty: string;
-  Credits: string;
-  courseType: string;
-  studentId: string[];
-  room: string[];
-  timeslots: TimeSlot[];
-}
+import { useState } from "react";
+import { useCourses, type Course } from "../context/CoursesContext";
+import ErrorState from "./ErrorState";
 
 interface TimetableProps {
   selectedCourse: string | null;
@@ -65,84 +47,6 @@ const DEFAULT_COLORS = {
   text: "text-gray-700",
   selectedBg: "bg-gray-700",
 };
-
-const MOCK_COURSES: Course[] = [
-  {
-    _id: "1",
-    courseId: "CS101",
-    "Course Code": "CS101",
-    "Course Name": "Data Structures",
-    Faculty: "Prof. Smith",
-    Credits: "3",
-    courseType: "CORE",
-    studentId: ["1", "2", "3"],
-    room: ["A101"],
-    timeslots: [
-      { day: "Mon", startTime: "09:30", endTime: "11:00", _id: "t1" },
-      { day: "Wed", startTime: "09:30", endTime: "11:00", _id: "t2" },
-    ],
-  },
-  {
-    _id: "2",
-    courseId: "CS102",
-    "Course Code": "CS102",
-    "Course Name": "Algorithms",
-    Faculty: "Prof. Jones",
-    Credits: "3",
-    courseType: "CORE",
-    studentId: ["1", "4"],
-    room: ["B202"],
-    timeslots: [
-      { day: "Tue", startTime: "11:30", endTime: "13:00", _id: "t3" },
-      { day: "Thu", startTime: "11:30", endTime: "13:00", _id: "t4" },
-    ],
-  },
-  {
-    _id: "3",
-    courseId: "CS201",
-    "Course Code": "CS201",
-    "Course Name": "Database Systems",
-    Faculty: "Prof. Lee",
-    Credits: "3",
-    courseType: "ELECTIVE",
-    studentId: ["2", "3"],
-    room: ["C303"],
-    timeslots: [
-      { day: "Mon", startTime: "14:00", endTime: "15:30", _id: "t5" },
-      { day: "Fri", startTime: "09:30", endTime: "11:00", _id: "t6" },
-    ],
-  },
-  {
-    _id: "4",
-    courseId: "CS202",
-    "Course Code": "CS202",
-    "Course Name": "Operating Systems",
-    Faculty: "Prof. Brown",
-    Credits: "3",
-    courseType: "CORE",
-    studentId: ["1", "2", "4"],
-    room: ["A201"],
-    timeslots: [
-      { day: "Wed", startTime: "14:00", endTime: "15:30", _id: "t7" },
-      { day: "Fri", startTime: "14:00", endTime: "15:30", _id: "t8" },
-    ],
-  },
-  {
-    _id: "5",
-    courseId: "CS301",
-    "Course Code": "CS301",
-    "Course Name": "Software Engineering",
-    Faculty: "Prof. Davis",
-    Credits: "3",
-    courseType: "ELECTIVE",
-    studentId: ["3", "5"],
-    room: ["B101"],
-    timeslots: [
-      { day: "Tue", startTime: "09:30", endTime: "11:00", _id: "t9" },
-      { day: "Thu", startTime: "14:00", endTime: "15:30", _id: "t10" },
-    ],
-  },
-];
 
 interface CourseDetailsModalProps {
   course: Course;
@@ -287,34 +191,13 @@ const CourseDetailsModal = ({
 };
 
 const Timetable = ({ selectedCourse }: TimetableProps) => {
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { courses, loading, error, refetch } = useCourses();
   const [activeModal, setActiveModal] = useState<{
     course: Course;
     day: string;
     startTime: string;
     endTime: string;
   } | null>(null);
-
-  useEffect(() => {
-    const fetchCourses = async () => {
-      setLoading(true);
-      try {
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-        const response = await fetch(`${apiBaseUrl}/api/courses`);
-        if (!response.ok) throw new Error(`API error: ${response.status}`);
-        const data: Course[] = await response.json();
-        setCourses(data);
-      } catch (err) {
-        console.warn("Failed to fetch courses from API, using mock data:", err);
-        setCourses(MOCK_COURSES);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCourses();
-  }, []);
 
   // Build a sorted list of unique timeslot time-ranges across all courses
   const getUniqueTimeslots = (): { startTime: string; endTime: string }[] => {
@@ -349,6 +232,14 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
   };
 
   const timeslots = getUniqueTimeslots();
+
+  if (error) {
+    return (
+      <div className="flex-1 flex flex-col bg-white p-4">
+        <ErrorState error={error} onRetry={refetch} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col bg-white p-4">

@@ -49,7 +49,9 @@ const OccupiedRooms = ({
 }: OccupiedRoomsProps) => {
   const [courses, setCourses] = useState<CourseData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedTimeslot, setSelectedTimeslot] = useState<TimeslotKey | null>(null);
+  const [selectedTimeslot, setSelectedTimeslot] = useState<TimeslotKey | null>(
+    null,
+  );
 
   useEffect(() => {
     const fetchCourses = async () => {
@@ -119,11 +121,18 @@ const OccupiedRooms = ({
   };
 
   // Get courses for a specific timeslot
-  const getCoursesForTimeslot = (day: string, startTime: string, endTime: string): CourseData[] => {
+  const getCoursesForTimeslot = (
+    day: string,
+    startTime: string,
+    endTime: string,
+  ): CourseData[] => {
     return courses.filter((course) =>
       course.timeslots.some(
-        (slot) => slot.day === day && slot.startTime === startTime && slot.endTime === endTime
-      )
+        (slot) =>
+          slot.day === day &&
+          slot.startTime === startTime &&
+          slot.endTime === endTime,
+      ),
     );
   };
 
@@ -148,14 +157,20 @@ const OccupiedRooms = ({
         <>
           {/* Header */}
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-2xl font-semibold text-gray-900">Occupied Classrooms</h2>
-            <p className="text-sm text-gray-600 mt-1">Timetable view of scheduled courses</p>
+            <h2 className="text-2xl font-semibold text-gray-900">
+              Occupied Classrooms
+            </h2>
+            <p className="text-sm text-gray-600 mt-1">
+              Timetable view of scheduled courses
+            </p>
           </div>
 
           {/* Timetable Grid */}
           <div className="flex-1 overflow-auto p-6">
             {timeslots.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">No courses scheduled</div>
+              <div className="text-center py-8 text-gray-500">
+                No courses scheduled
+              </div>
             ) : (
               <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-auto">
                 <table className="w-full border-collapse">
@@ -187,13 +202,16 @@ const OccupiedRooms = ({
                           const cellCourses = getCoursesForTimeslot(
                             day,
                             timeslot.startTime,
-                            timeslot.endTime
+                            timeslot.endTime,
                           );
                           return (
                             <td
                               key={day}
-                              onClick={() => cellCourses.length > 0 && setSelectedTimeslot({ ...timeslot, day })}
-                              className={`border-b border-r border-gray-200 px-3 py-3 min-h-[80px] align-center ${
+                              onClick={() =>
+                                cellCourses.length > 0 &&
+                                setSelectedTimeslot({ ...timeslot, day })
+                              }
+                              className={`border-b border-r border-gray-200 px-3 py-3 min-h-20 align-center ${
                                 cellCourses.length > 0
                                   ? "bg-blue-50 hover:bg-blue-100 cursor-pointer transition-colors"
                                   : "bg-white"
@@ -206,7 +224,8 @@ const OccupiedRooms = ({
                                       {cellCourses.length}
                                     </div>
                                     <div className="text-xs text-blue-600">
-                                      course{cellCourses.length !== 1 ? "s" : ""}
+                                      course
+                                      {cellCourses.length !== 1 ? "s" : ""}
                                     </div>
                                   </div>
                                 </div>
@@ -226,8 +245,14 @@ const OccupiedRooms = ({
 
       {/* Modal for timeslot details */}
       {selectedTimeslot && (
-        <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedTimeslot(null)}>
-          <div className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+        <div
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedTimeslot(null)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="flex justify-between items-center p-6 border-b border-gray-200">
               <div>
@@ -252,7 +277,7 @@ const OccupiedRooms = ({
                 const courses = getCoursesForTimeslot(
                   selectedTimeslot.day,
                   selectedTimeslot.startTime,
-                  selectedTimeslot.endTime
+                  selectedTimeslot.endTime,
                 );
                 return (
                   <div className="space-y-4">
@@ -278,15 +303,21 @@ const OccupiedRooms = ({
                         </div>
                         <div className="grid grid-cols-3 gap-4 text-sm text-gray-600 mt-3 pt-3 border-t border-gray-100">
                           <div>
-                            <span className="font-medium text-gray-900">Faculty:</span>
+                            <span className="font-medium text-gray-900">
+                              Faculty:
+                            </span>
                             <p>{course.Faculty}</p>
                           </div>
                           <div>
-                            <span className="font-medium text-gray-900">Credits:</span>
+                            <span className="font-medium text-gray-900">
+                              Credits:
+                            </span>
                             <p>{course.Credits}</p>
                           </div>
                           <div>
-                            <span className="font-medium text-gray-900">Students:</span>
+                            <span className="font-medium text-gray-900">
+                              Students:
+                            </span>
                             <p>{course.studentId.length}</p>
                           </div>
                         </div>

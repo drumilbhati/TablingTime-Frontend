@@ -22,8 +22,13 @@ const ClassroomTable = ({ selectedCourse }: ClassroomTableProps) => {
   >(null);
 
   const roomColumns = [
-    "Seas_0", "Seas_1", "Seas_2", "Seas_3",
-    "Sas_0", "Sas_1", "Sas_2",
+    "Seas_0",
+    "Seas_1",
+    "Seas_2",
+    "Seas_3",
+    "Sas_0",
+    "Sas_1",
+    "Sas_2",
   ];
 
   const classrooms: Classroom[] = [
@@ -39,7 +44,7 @@ const ClassroomTable = ({ selectedCourse }: ClassroomTableProps) => {
     setSelectedSectionCapacity(Math.min(classroom.capacity, 40));
   };
 
-  const handleConfirm = (_confirm: boolean) => {
+  const handleConfirm = () => {
     if (!selectedClassroom || !selectedSection) {
       setSelectedClassroom(null);
       setSelectedSection(null);
@@ -57,7 +62,7 @@ const ClassroomTable = ({ selectedCourse }: ClassroomTableProps) => {
     <>
       <div className="flex gap-6 h-full">
         {/* Left panel: course details */}
-        <div className="w-56 flex-shrink-0 space-y-4">
+        <div className="w-56 shrink-0 space-y-4">
           <div className="p-4 bg-white rounded-lg border border-gray-200 shadow-sm">
             <div className="text-xs text-gray-500 uppercase font-medium">
               Selected Course Code
@@ -105,8 +110,7 @@ const ClassroomTable = ({ selectedCourse }: ClassroomTableProps) => {
             <table className="w-full border-collapse table-fixed">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="border-b border-r border-gray-200 px-4 py-4 text-left text-sm text-gray-600 font-semibold w-24">
-                  </th>
+                  <th className="border-b border-r border-gray-200 px-4 py-4 text-left text-sm text-gray-600 font-semibold w-24"></th>
                   {roomColumns.map((col) => (
                     <th
                       key={col}
@@ -135,8 +139,7 @@ const ClassroomTable = ({ selectedCourse }: ClassroomTableProps) => {
                         key={`${c.id}-${col}`}
                         onClick={() => handleCellClick(c, col)}
                         className="border-b border-r border-gray-200 px-4 py-4 text-center text-sm text-gray-700 cursor-pointer hover:bg-gray-100 transition-all"
-                      >
-                      </td>
+                      ></td>
                     ))}
                     <td className="border-b border-gray-200 px-4 py-4 text-center text-sm text-gray-400">
                       …
@@ -154,7 +157,7 @@ const ClassroomTable = ({ selectedCourse }: ClassroomTableProps) => {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div
             className="absolute inset-0 bg-black/40"
-            onClick={() => handleConfirm(false)}
+            onClick={() => handleConfirm()}
           />
           <div className="relative z-10">
             <ClassroomCard
@@ -162,7 +165,7 @@ const ClassroomTable = ({ selectedCourse }: ClassroomTableProps) => {
               section={selectedSection}
               sectionCapacity={selectedSectionCapacity}
               onConfirm={handleConfirm}
-              onClose={() => handleConfirm(false)}
+              onClose={handleConfirm}
             />
           </div>
         </div>

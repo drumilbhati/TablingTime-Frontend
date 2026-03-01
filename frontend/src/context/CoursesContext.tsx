@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { useAuth } from "./AuthContext";
 
 interface TimeSlot {
@@ -35,6 +35,7 @@ const filterCoursesByRole = (
   role: "admin" | "student" | "faculty" | null,
   userId: string | null,
   userName: string | null,
+  enrolledCourseIds: string[],
 ): Course[] => {
   if (role === "admin") {
     // Admin sees everything.
@@ -43,8 +44,10 @@ const filterCoursesByRole = (
 
   if (role === "student" && userId) {
     // Student sees only courses they are enrolled in.
-    // The backend stores enrolled student IDs in the studentId array.
-    return allCourses.filter((course) => course.studentId.includes(userId));
+    // Enrolled courseIds are fetched from the enrolments endpoint.
+    return allCourses.filter((course) =>
+      enrolledCourseIds.includes(course.courseId),
+    );
   }
 
   if (role === "faculty" && userName) {
@@ -65,8 +68,13 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
   const { userRole, userId, userName, authLoading } = useAuth();
 
   const [allCourses, setAllCourses] = useState<Course[]>([]);
+  const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Track the userId we last fetched enrolments for so we don't refetch
+  // unnecessarily on every re-render.
+  const lastFetchedEnrolmentUserId = useRef<string | null>(null);
 
   const fetchCourses = async () => {
     setLoading(true);
@@ -87,15 +95,51 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   };
 
-  // Fetch once auth is resolved so we have role/userId/userName available.
+  const fetchEnrolledCourseIds = async (id: string) => {
+    try {
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${apiBaseUrl}/api/enrolments/student/${id}`, {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      if (!res.ok) throw new Error(`Status ${res.status}`);
+      const data: { courseId: string }[] = await res.json();
+      setEnrolledCourseIds(data.map((e) => e.courseId));
+      lastFetchedEnrolmentUserId.current = id;
+    } catch (err) {
+      console.error("Failed to fetch enrolments:", err);
+      setEnrolledCourseIds([]);
+    }
+  };
+
+  // Fetch courses once auth is resolved.
   useEffect(() => {
     if (!authLoading) {
       fetchCourses();
     }
   }, [authLoading]);
 
-  // Re-filter whenever auth identity changes (e.g. after login).
-  const courses = filterCoursesByRole(allCourses, userRole, userId, userName);
+  // Fetch enrolments whenever the logged-in student's userId becomes available.
+  useEffect(() => {
+    if (
+      userRole === "student" &&
+      userId &&
+      userId !== lastFetchedEnrolmentUserId.current
+    ) {
+      fetchEnrolledCourseIds(userId);
+    }
+  }, [userRole, userId]);
+
+  // Re-filter whenever auth identity or enrolments change.
+  const courses = filterCoursesByRole(
+    allCourses,
+    userRole,
+    userId,
+    userName,
+    enrolledCourseIds,
+  );
 
   return (
     <CoursesContext.Provider

@@ -5,6 +5,7 @@ import Login from "./pages/Login.tsx";
 import TimetablePage from "./pages/TimetablePage.tsx";
 import ClassroomsPage from "./pages/ClassroomsPage.tsx";
 import OccupiedRooms from "./pages/OccupiedRooms.tsx";
+import EnrolmentPage from "./pages/EnrolmentPage.tsx";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "./context/AuthContext.tsx";
 import { CoursesProvider } from "./context/CoursesContext.tsx";
@@ -47,6 +48,14 @@ function App() {
                 element={
                   <AdminRoute>
                     <OccupiedRooms />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/enrolment"
+                element={
+                  <AdminRoute>
+                    <EnrolmentPage />
                   </AdminRoute>
                 }
               />

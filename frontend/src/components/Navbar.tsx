@@ -71,6 +71,16 @@ const Navbar = () => {
               >
                 Occupied Rooms
               </button>
+              <button
+                onClick={() => navigate("/enrolment")}
+                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                  isActive("/enrolment")
+                    ? "text-black border-b-2 border-black"
+                    : "text-gray-600 hover:text-black"
+                }`}
+              >
+                Enrolment
+              </button>
             </>
           )}
 

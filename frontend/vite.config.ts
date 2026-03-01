@@ -11,4 +11,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  server: {
+    allowedHosts: ["tabling-time-abl-791018269.eu-north-1.elb.amazonaws.com"],
+  },
 });

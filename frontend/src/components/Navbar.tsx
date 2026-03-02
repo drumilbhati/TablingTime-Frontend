@@ -52,16 +52,6 @@ const Navbar = () => {
           {isAdmin && (
             <>
               <button
-                onClick={() => navigate("/classrooms")}
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  isActive("/classrooms")
-                    ? "text-black border-b-2 border-black"
-                    : "text-gray-600 hover:text-black"
-                }`}
-              >
-                Classrooms
-              </button>
-              <button
                 onClick={() => navigate("/occupied")}
                 className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
                   isActive("/occupied")

@@ -3,7 +3,7 @@ import Navbar from "./components/Navbar.tsx";
 import { Route, Routes, Navigate } from "react-router-dom";
 import Login from "./pages/Login.tsx";
 import TimetablePage from "./pages/TimetablePage.tsx";
-import ClassroomsPage from "./pages/ClassroomsPage.tsx";
+
 import OccupiedRooms from "./pages/OccupiedRooms.tsx";
 import EnrolmentPage from "./pages/EnrolmentPage.tsx";
 import { GoogleOAuthProvider } from "@react-oauth/google";
@@ -35,14 +35,7 @@ function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/timetable" replace />} />
               <Route path="/timetable" element={<TimetablePage />} />
-              <Route
-                path="/classrooms"
-                element={
-                  <AdminRoute>
-                    <ClassroomsPage />
-                  </AdminRoute>
-                }
-              />
+
               <Route
                 path="/occupied"
                 element={

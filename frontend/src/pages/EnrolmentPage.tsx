@@ -306,13 +306,32 @@ const SchedulerCard = ({
     try {
       const token = localStorage.getItem("token");
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+      const headers = {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+      const schedulerPaths = ["/api/scheduling", "/scheduling"];
+      let res: Response | null = null;
 
-      const res = await fetch(`${apiBaseUrl}/scheduling`, {
-        method: "GET",
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+      for (const path of schedulerPaths) {
+        const candidate = await fetch(`${apiBaseUrl}${path}`, {
+          method: "GET",
+          headers,
+        });
+
+        if (candidate.status !== 404) {
+          res = candidate;
+          break;
+        }
+      }
+
+      if (!res) {
+        setStatus({
+          type: "error",
+          message:
+            "Scheduler endpoint was not found. Check how the backend route is mounted.",
+        });
+        return;
+      }
 
       if (!res.ok) {
         let message = `Server error (${res.status})`;

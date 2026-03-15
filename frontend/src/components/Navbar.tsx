@@ -10,6 +10,12 @@ const Navbar = () => {
   const isActive = (path: string) => location.pathname === path;
 
   const isAdmin = userRole === "admin";
+  const navButtonClass = (path: string) =>
+    `rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
+      isActive(path)
+        ? "border-gray-900 bg-gray-50 text-black"
+        : "border-transparent text-gray-600 hover:border-gray-300 hover:bg-gray-50 hover:text-black"
+    }`;
 
   const getRoleBadgeStyle = (role: string) => {
     switch (role) {
@@ -29,7 +35,7 @@ const Navbar = () => {
       <div className="max-w-full mx-auto px-6 py-4 flex justify-between items-center">
         {/* Logo */}
         <div
-          className="text-4xl font-bold text-black cursor-pointer hover:text-gray-500 transition-colors"
+          className="app-brand cursor-pointer transition-colors hover:text-gray-500"
           onClick={() => navigate("/")}
         >
           TablingTime
@@ -39,11 +45,7 @@ const Navbar = () => {
         <div className="flex items-center gap-6">
           <button
             onClick={() => navigate("/timetable")}
-            className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-              isActive("/timetable")
-                ? "text-black border-b-2 border-black"
-                : "text-gray-600 hover:text-black"
-            }`}
+            className={navButtonClass("/timetable")}
           >
             Timetable
           </button>
@@ -53,21 +55,13 @@ const Navbar = () => {
             <>
               <button
                 onClick={() => navigate("/occupied")}
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  isActive("/occupied")
-                    ? "text-black border-b-2 border-black"
-                    : "text-gray-600 hover:text-black"
-                }`}
+                className={navButtonClass("/occupied")}
               >
                 Occupied Rooms
               </button>
               <button
                 onClick={() => navigate("/enrolment")}
-                className={`px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-                  isActive("/enrolment")
-                    ? "text-black border-b-2 border-black"
-                    : "text-gray-600 hover:text-black"
-                }`}
+                className={navButtonClass("/enrolment")}
               >
                 Enrolment
               </button>

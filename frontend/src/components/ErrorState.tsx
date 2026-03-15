@@ -8,9 +8,7 @@ const ErrorState = ({ error, onRetry }: ErrorStateProps) => {
     <div className="flex-1 flex items-center justify-center h-full">
       <div className="text-center max-w-sm mx-auto px-4">
         <div className="text-5xl mb-4">⚠️</div>
-        <h2 className="text-lg font-semibold text-gray-900 mb-2">
-          Failed to load courses
-        </h2>
+        <h2 className="section-title mb-2">Failed to load courses</h2>
         <p className="text-sm text-gray-500 mb-6">
           {error
             ? error

@@ -93,9 +93,7 @@ const OccupiedRooms = () => {
         <>
           {/* Header */}
           <div className="p-6 border-b border-gray-200">
-            <h2 className="text-2xl font-semibold text-gray-900">
-              Occupied Classrooms
-            </h2>
+            <h1 className="page-title">Occupied Classrooms</h1>
             <p className="text-sm text-gray-600 mt-1">
               Timetable view of scheduled courses
             </p>
@@ -192,9 +190,9 @@ const OccupiedRooms = () => {
             {/* Modal Header */}
             <div className="flex justify-between items-center p-6 border-b border-gray-200">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">
+                <h2 className="panel-title">
                   {dayFullNames[selectedTimeslot.day]}
-                </h3>
+                </h2>
                 <p className="text-sm text-gray-600">
                   {selectedTimeslot.startTime} - {selectedTimeslot.endTime}
                 </p>
@@ -224,9 +222,7 @@ const OccupiedRooms = () => {
                       >
                         <div className="flex justify-between items-start mb-2">
                           <div>
-                            <h4 className="font-semibold text-gray-900">
-                              {course.courseId}
-                            </h4>
+                            <h3 className="panel-title">{course.courseId}</h3>
                             <p className="text-sm text-gray-600">
                               {course["Course Name"]}
                             </p>

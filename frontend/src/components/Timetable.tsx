@@ -84,14 +84,14 @@ const CourseDetailsModal = ({
         >
           <div>
             <div
-              className={`text-xs font-semibold uppercase tracking-wider mb-1 ${
+              className={`eyebrow-label mb-1 ${
                 isSelected ? "text-white/70" : colors.text
               }`}
             >
               {course.courseType}
             </div>
             <h3
-              className={`text-lg font-bold ${
+              className={`panel-title ${
                 isSelected ? "text-white" : "text-gray-900"
               }`}
             >

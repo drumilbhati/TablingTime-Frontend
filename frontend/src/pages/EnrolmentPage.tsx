@@ -39,12 +39,6 @@ type UploadConfig = {
   columns: string;
 };
 
-type SchedulerStatus =
-  | { type: "idle" }
-  | { type: "loading" }
-  | { type: "success"; message: string }
-  | { type: "error"; message: string };
-
 const CSV_UPLOADS: UploadConfig[] = [
   {
     id: "courses",
@@ -293,139 +287,6 @@ const roleBadgeClass: Record<User["role"], string> = {
   student: "bg-green-100 text-green-700 border-green-200",
 };
 
-const SchedulerCard = ({
-  onScheduled,
-}: {
-  onScheduled: () => void | Promise<void>;
-}) => {
-  const [status, setStatus] = useState<SchedulerStatus>({ type: "idle" });
-
-  const handleSchedule = async () => {
-    setStatus({ type: "loading" });
-
-    try {
-      const token = localStorage.getItem("token");
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-      const headers = {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
-      const schedulerPaths = ["/api/scheduling", "/scheduling"];
-      let res: Response | null = null;
-
-      for (const path of schedulerPaths) {
-        const candidate = await fetch(`${apiBaseUrl}${path}`, {
-          method: "GET",
-          headers,
-        });
-
-        if (candidate.status !== 404) {
-          res = candidate;
-          break;
-        }
-      }
-
-      if (!res) {
-        setStatus({
-          type: "error",
-          message:
-            "Scheduler endpoint was not found. Check how the backend route is mounted.",
-        });
-        return;
-      }
-
-      if (!res.ok) {
-        let message = `Server error (${res.status})`;
-
-        try {
-          const data = await res.json();
-          message = data?.message ?? data?.error ?? message;
-        } catch {
-          try {
-            const text = await res.text();
-            if (text) {
-              message = text;
-            }
-          } catch {
-            // Ignore response parse failures and keep the fallback message.
-          }
-        }
-
-        setStatus({ type: "error", message });
-        return;
-      }
-
-      await onScheduled();
-      setStatus({
-        type: "success",
-        message:
-          "Automatic scheduling completed and timetable data was refreshed.",
-      });
-    } catch (err) {
-      setStatus({
-        type: "error",
-        message:
-          err instanceof Error ? err.message : "Unexpected error occurred.",
-      });
-    }
-  };
-
-  return (
-    <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="section-title">Auto Schedule Courses</h2>
-          <p className="mt-1 text-sm text-gray-500">
-            Run the backend scheduler to reset current assignments and generate
-            a fresh timetable.
-          </p>
-        </div>
-        <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-emerald-700">
-          Admin
-        </span>
-      </div>
-
-      <div className="mt-4 rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4">
-        <p className="eyebrow-label">What this does</p>
-        <p className="mt-1 text-sm text-gray-700">
-          Calls the backend <code>/scheduling</code> endpoint, clears existing
-          course and room schedules, recomputes timings, and updates the
-          frontend with the new timetable.
-        </p>
-      </div>
-
-      <button
-        onClick={handleSchedule}
-        disabled={status.type === "loading"}
-        className="mt-4 inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        {status.type === "loading" ? (
-          <>
-            <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-            Scheduling...
-          </>
-        ) : (
-          <>
-            <Upload size={14} />
-            Run Scheduler
-          </>
-        )}
-      </button>
-
-      {status.type === "success" && (
-        <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3">
-          <p className="text-sm text-green-700">{status.message}</p>
-        </div>
-      )}
-
-      {status.type === "error" && (
-        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3">
-          <p className="text-sm text-red-700">{status.message}</p>
-        </div>
-      )}
-    </div>
-  );
-};
-
 const CsvUploadCard = ({ config }: { config: UploadConfig }) => {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<UploadStatus>({ type: "idle" });
@@ -570,7 +431,6 @@ const CsvUploadCard = ({ config }: { config: UploadConfig }) => {
 
 const EnrolmentPage = () => {
   const { userId: adminId } = useAuth();
-  const { refetch } = useCourses();
 
   const [users, setUsers] = useState<User[]>([]);
   const [usersLoading, setUsersLoading] = useState(true);
@@ -646,9 +506,7 @@ const EnrolmentPage = () => {
       </div>
 
       <div className="border-b border-gray-100 px-6 py-6">
-        <SchedulerCard onScheduled={refetch} />
-
-        <div className="mb-4 mt-6">
+        <div className="mb-4">
           <h2 className="section-title">CSV Uploads</h2>
           <p className="mt-1 text-sm text-gray-500">
             Each upload expects a single CSV file under the <code>file</code>{" "}

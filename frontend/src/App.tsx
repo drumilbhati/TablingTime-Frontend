@@ -6,6 +6,7 @@ import TimetablePage from "./pages/TimetablePage.tsx";
 
 import OccupiedRooms from "./pages/OccupiedRooms.tsx";
 import EnrolmentPage from "./pages/EnrolmentPage.tsx";
+import SchedulePage from "./pages/SchedulePage.tsx";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "./context/AuthContext.tsx";
 import { CoursesProvider } from "./context/CoursesContext.tsx";
@@ -49,6 +50,14 @@ function App() {
                 element={
                   <AdminRoute>
                     <EnrolmentPage />
+                  </AdminRoute>
+                }
+              />
+              <Route
+                path="/schedule"
+                element={
+                  <AdminRoute>
+                    <SchedulePage />
                   </AdminRoute>
                 }
               />

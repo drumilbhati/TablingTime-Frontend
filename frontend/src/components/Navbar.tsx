@@ -65,6 +65,12 @@ const Navbar = () => {
               >
                 Enrolment
               </button>
+              <button
+                onClick={() => navigate("/schedule")}
+                className={navButtonClass("/schedule")}
+              >
+                Schedule
+              </button>
             </>
           )}
 

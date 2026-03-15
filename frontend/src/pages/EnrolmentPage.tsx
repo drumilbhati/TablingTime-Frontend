@@ -89,6 +89,8 @@ const SEMESTERS = [
 const EnrolModal = ({ user, onClose }: EnrolModalProps) => {
   const { courses } = useCourses();
   const { userId: adminId } = useAuth();
+  const isStudent = user.role === "student";
+  const isFaculty = user.role === "faculty";
 
   const [selectedCourseId, setSelectedCourseId] = useState<string>("");
   const [selectedSemester, setSelectedSemester] = useState<string>(
@@ -97,25 +99,34 @@ const EnrolModal = ({ user, onClose }: EnrolModalProps) => {
   const [status, setStatus] = useState<EnrolStatus>({ type: "idle" });
 
   const handleEnrol = async () => {
-    if (!selectedCourseId || !selectedSemester) return;
+    if (!selectedCourseId || !selectedSemester || (!isStudent && !isFaculty))
+      return;
 
     setStatus({ type: "loading" });
 
     try {
       const token = localStorage.getItem("token");
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+      const endpoint = isFaculty ? "/enrolprofessor" : "/api/enrolstudent";
+      const body = isFaculty
+        ? {
+            professorId: user._id,
+            courseId: selectedCourseId,
+            semester: selectedSemester,
+          }
+        : {
+            studentId: user._id,
+            courseId: selectedCourseId,
+            semester: selectedSemester,
+          };
 
-      const res = await fetch(`${apiBaseUrl}/api/enrolstudent`, {
+      const res = await fetch(`${apiBaseUrl}${endpoint}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          studentId: user._id,
-          courseId: selectedCourseId,
-          semester: selectedSemester,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await res.json();
@@ -166,7 +177,7 @@ const EnrolModal = ({ user, onClose }: EnrolModalProps) => {
           <div>
             <h3 className="panel-title flex items-center gap-2">
               <UserPlus size={16} className="text-gray-500" />
-              Enrol Student
+              {isFaculty ? "Enrol Professor" : "Enrol Student"}
             </h3>
             <p className="text-sm text-gray-500 mt-0.5">
               {user.name}{" "}
@@ -257,7 +268,12 @@ const EnrolModal = ({ user, onClose }: EnrolModalProps) => {
           {!isDone && (
             <button
               onClick={handleEnrol}
-              disabled={!selectedCourseId || !selectedSemester || isSubmitting}
+              disabled={
+                !selectedCourseId ||
+                !selectedSemester ||
+                isSubmitting ||
+                (!isStudent && !isFaculty)
+              }
               className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
             >
               {isSubmitting ? (
@@ -641,13 +657,17 @@ const EnrolmentPage = () => {
 
                       {/* Enrol action */}
                       <td className="border-b border-gray-100 px-4 py-3 text-right">
-                        <button
-                          onClick={() => setEnrolTarget(user)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors"
-                        >
-                          <UserPlus size={12} />
-                          Enrol
-                        </button>
+                        {user.role === "admin" ? (
+                          <span className="text-xs text-gray-400">N/A</span>
+                        ) : (
+                          <button
+                            onClick={() => setEnrolTarget(user)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors"
+                          >
+                            <UserPlus size={12} />
+                            Enrol
+                          </button>
+                        )}
                       </td>
                     </tr>
                   );

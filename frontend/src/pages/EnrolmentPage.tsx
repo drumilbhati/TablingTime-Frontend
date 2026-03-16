@@ -307,6 +307,16 @@ const CsvUploadCard = ({ config }: { config: UploadConfig }) => {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<UploadStatus>({ type: "idle" });
 
+  const snapshotSelectedFile = async (selectedFile: File) => {
+    // Read the file immediately so later uploads don't depend on the original
+    // disk file remaining unchanged.
+    const bytes = await selectedFile.arrayBuffer();
+    return new File([bytes], selectedFile.name, {
+      type: selectedFile.type || "text/csv",
+      lastModified: Date.now(),
+    });
+  };
+
   const handleUpload = async () => {
     if (!file) return;
 
@@ -373,10 +383,28 @@ const CsvUploadCard = ({ config }: { config: UploadConfig }) => {
         <input
           type="file"
           accept=".csv,text/csv"
-          onChange={(e) => {
+          onChange={async (e) => {
             const nextFile = e.target.files?.[0] ?? null;
-            setFile(nextFile);
             setStatus({ type: "idle" });
+
+            if (!nextFile) {
+              setFile(null);
+              return;
+            }
+
+            try {
+              const snapshottedFile = await snapshotSelectedFile(nextFile);
+              setFile(snapshottedFile);
+            } catch (err) {
+              setFile(null);
+              setStatus({
+                type: "error",
+                message:
+                  err instanceof Error
+                    ? `Could not read selected file: ${err.message}`
+                    : "Could not read selected file.",
+              });
+            }
           }}
           className="block w-full text-sm text-gray-600 file:mr-4 file:rounded-md file:border-0 file:bg-gray-900 file:px-4 file:py-2 file:text-sm file:font-medium file:text-white hover:file:bg-gray-700"
         />

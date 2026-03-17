@@ -54,7 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Confirm with the server that the token is still valid and get the
       // canonical role (in case it was updated since the token was issued).
       try {
-        const res = await fetch(buildApiUrl("/api/auth/role"), {
+        const res = await fetch(buildApiUrl("/auth/role"), {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -98,7 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const googleLogin = useGoogleLogin({
     onSuccess: async (codeResponse: CodeResponse) => {
       try {
-        const response = await fetch(buildApiUrl("/api/auth/google"), {
+        const response = await fetch(buildApiUrl("/auth/google"), {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

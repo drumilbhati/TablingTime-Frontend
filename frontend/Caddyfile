@@ -1,3 +1,0 @@
-13.50.194.30.nip.io {
-    reverse_proxy localhost:5173
-}

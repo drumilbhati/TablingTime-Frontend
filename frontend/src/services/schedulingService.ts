@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+import { buildApiUrl } from "../lib/api";
 
 export interface SchedulingRequest {
   courseId: string;
@@ -46,7 +46,7 @@ class SchedulingService {
     request: SchedulingRequest,
   ): Promise<SchedulingResponse> {
     const token = localStorage.getItem("token");
-    const response = await fetch(`${API_BASE_URL}/api/manual-schedule`, {
+    const response = await fetch(buildApiUrl("/api/manual-schedule"), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -67,7 +67,7 @@ class SchedulingService {
 
   async getAllRooms(): Promise<Room[]> {
     const token = localStorage.getItem("token");
-    const response = await fetch(`${API_BASE_URL}/api/rooms`, {
+    const response = await fetch(buildApiUrl("/api/rooms"), {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
@@ -82,7 +82,7 @@ class SchedulingService {
 
   async getAllSlots(): Promise<Slot[]> {
     const token = localStorage.getItem("token");
-    const response = await fetch(`${API_BASE_URL}/api/slots`, {
+    const response = await fetch(buildApiUrl("/api/slots"), {
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },

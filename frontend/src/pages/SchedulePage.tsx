@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Upload } from "lucide-react";
 import { useCourses } from "../context/CoursesContext";
+import { buildApiUrl } from "../lib/api";
 
 type SchedulerStatus =
   | { type: "idle" }
@@ -17,15 +18,14 @@ const SchedulePage = () => {
 
     try {
       const token = localStorage.getItem("token");
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
       const headers = {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
-      const schedulerPaths = ["/api/scheduling", "/scheduling"];
+      const schedulerPaths = ["/api/scheduling"];
       let res: Response | null = null;
 
       for (const path of schedulerPaths) {
-        const candidate = await fetch(`${apiBaseUrl}${path}`, {
+        const candidate = await fetch(buildApiUrl(path), {
           method: "GET",
           headers,
         });

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { useGoogleLogin, type CodeResponse } from "@react-oauth/google";
+import { buildApiUrl } from "../lib/api";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -53,14 +54,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // Confirm with the server that the token is still valid and get the
       // canonical role (in case it was updated since the token was issued).
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/auth/role`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+        const res = await fetch(buildApiUrl("/api/auth/role"), {
+          headers: {
+            Authorization: `Bearer ${token}`,
           },
-        );
+        });
 
         if (!res.ok) {
           // 401 = expired/invalid token, 404 = user deleted — either way, log out.
@@ -100,18 +98,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const googleLogin = useGoogleLogin({
     onSuccess: async (codeResponse: CodeResponse) => {
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL}/auth/google`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              code: codeResponse.code,
-            }),
+        const response = await fetch(buildApiUrl("/api/auth/google"), {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
           },
-        );
+          body: JSON.stringify({
+            code: codeResponse.code,
+          }),
+        });
 
         if (!response.ok) {
           throw new Error(`Server responded with status: ${response.status}`);

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useRef } from "react";
 import { useAuth } from "./AuthContext";
+import { buildApiUrl } from "../lib/api";
 
 interface TimeSlot {
   day: string;
@@ -81,7 +82,6 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
     setLoading(true);
     setError(null);
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
       const token = localStorage.getItem("token");
 
       if (!token) {
@@ -89,7 +89,7 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
-      const response = await fetch(`${apiBaseUrl}/api/courses`, {
+      const response = await fetch(buildApiUrl("/api/courses"), {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -109,9 +109,8 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const fetchEnrolledCourseIds = async (id: string) => {
     try {
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
       const token = localStorage.getItem("token");
-      const res = await fetch(`${apiBaseUrl}/api/enrolments/student/${id}`, {
+      const res = await fetch(buildApiUrl(`/api/enrolments/student/${id}`), {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },

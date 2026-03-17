@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { useCourses } from "../context/CoursesContext";
 import ErrorState from "../components/ErrorState";
 import { X, UserPlus, Search, ChevronDown, Upload } from "lucide-react";
+import { buildApiUrl } from "../lib/api";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -106,8 +107,7 @@ const EnrolModal = ({ user, onClose }: EnrolModalProps) => {
 
     try {
       const token = localStorage.getItem("token");
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-      const endpoint = isFaculty ? "/enrolprofessor" : "/api/enrolstudent";
+      const endpoint = isFaculty ? "/api/enrolprofessor" : "/api/enrolstudent";
       const body = isFaculty
         ? {
             professorId: user._id,
@@ -120,7 +120,7 @@ const EnrolModal = ({ user, onClose }: EnrolModalProps) => {
             semester: selectedSemester,
           };
 
-      const res = await fetch(`${apiBaseUrl}${endpoint}`, {
+      const res = await fetch(buildApiUrl(endpoint), {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -324,11 +324,10 @@ const CsvUploadCard = ({ config }: { config: UploadConfig }) => {
 
     try {
       const token = localStorage.getItem("token");
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
       const formData = new FormData();
       formData.append("file", file);
 
-      const res = await fetch(`${apiBaseUrl}${config.endpoint}`, {
+      const res = await fetch(buildApiUrl(config.endpoint), {
         method: "POST",
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -492,9 +491,8 @@ const EnrolmentPage = () => {
     setUsersError(null);
     try {
       const token = localStorage.getItem("token");
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
 
-      const res = await fetch(`${apiBaseUrl}/api/admin/all-users`, {
+      const res = await fetch(buildApiUrl("/api/admin/all-users"), {
         headers: {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },

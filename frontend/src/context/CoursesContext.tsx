@@ -65,7 +65,8 @@ const filterCoursesByRole = (
 export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const { userRole, userId, userName, authLoading } = useAuth();
+  const { userRole, userId, userName, authLoading, isAuthenticated } =
+    useAuth();
 
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [enrolledCourseIds, setEnrolledCourseIds] = useState<string[]>([]);
@@ -81,7 +82,18 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
     setError(null);
     try {
       const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-      const response = await fetch(`${apiBaseUrl}/api/courses`);
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        setAllCourses([]);
+        return;
+      }
+
+      const response = await fetch(`${apiBaseUrl}/api/courses`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       if (!response.ok)
         throw new Error(`Server responded with status ${response.status}`);
       const data: Course[] = await response.json();
@@ -119,7 +131,7 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!authLoading) {
       fetchCourses();
     }
-  }, [authLoading]);
+  }, [authLoading, isAuthenticated]);
 
   // Fetch enrolments whenever the logged-in student's userId becomes available.
   useEffect(() => {

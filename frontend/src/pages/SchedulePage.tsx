@@ -66,7 +66,7 @@ const SchedulePage = () => {
         return;
       }
 
-      await Promise.resolve(refetch());
+      await refetch();
       setStatus({
         type: "success",
         message: "Scheduling completed successfully.",

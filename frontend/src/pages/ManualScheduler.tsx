@@ -110,6 +110,12 @@ const ManualScheduler = () => {
   const [roomSelectorSource, setRoomSelectorSource] =
     useState<DragSource | null>(null);
   const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null);
+  const [deletingSlotInfo, setDeletingSlotInfo] = useState<{
+    day: string;
+    startTime: string;
+    endTime: string;
+    roomNumber?: string;
+  } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -162,6 +168,9 @@ const ManualScheduler = () => {
     }
 
     if (actionType === "DELETE") {
+      if (!data.prevDay || !data.prevStartTime || !data.prevEndTime) {
+        throw new Error("prevDay, prevStartTime and prevEndTime are required for delete");
+      }
       return;
     }
 
@@ -200,10 +209,20 @@ const ManualScheduler = () => {
         }
 
         if (actionType === "DELETE") {
+          // Remove only the specific slot, not all slots
+          const filteredTimeslots = course.timeslots?.filter(
+            (slot) =>
+              !(
+                toShortDayName(slot.day) === toShortDayName(data.prevDay || "") &&
+                slot.startTime === data.prevStartTime &&
+                slot.endTime === data.prevEndTime
+              )
+          ) || [];
+
           return {
             ...course,
-            room: [],
-            timeslots: [],
+            room: filteredTimeslots.length === 0 ? [] : course.room,
+            timeslots: filteredTimeslots,
           };
         }
 
@@ -290,19 +309,24 @@ const ManualScheduler = () => {
   );
 
   const handleDeleteCourseConfirm = async () => {
-    if (!deletingCourseId) return;
+    if (!deletingCourseId || !deletingSlotInfo) return;
 
     const wasSuccessful = await handleManualScheduling(
       "DELETE",
       {
         courseId: deletingCourseId,
+        prevDay: toFullDayName(deletingSlotInfo.day),
+        prevStartTime: deletingSlotInfo.startTime,
+        prevEndTime: deletingSlotInfo.endTime,
+        prevRoomNumber: deletingSlotInfo.roomNumber,
       },
-      "Course deleted successfully!",
+      "Course slot removed successfully!",
     );
 
     if (wasSuccessful) {
       setShowDeleteConfirm(false);
       setDeletingCourseId(null);
+      setDeletingSlotInfo(null);
     }
   };
 
@@ -592,7 +616,7 @@ const ManualScheduler = () => {
         <h1 className="text-2xl font-bold text-gray-900">Manual Scheduler</h1>
         <p className="text-sm text-gray-600 mt-1">
           Drag courses to schedule. Drag from sidebar or from timetable cells
-          to reschedule. Click delete on scheduled courses to remove.
+          to reschedule. Click the X button on scheduled courses to remove their slot.
         </p>
       </div>
 
@@ -708,7 +732,7 @@ const ManualScheduler = () => {
                 {scheduledCourses.length !== 1 ? "s" : ""}
               </p>
               <p className="text-xs text-gray-500 mt-1 italic">
-                Drag to move or click to delete
+                Drag to move or click to remove slot
               </p>
             </div>
 
@@ -782,12 +806,18 @@ const ManualScheduler = () => {
                       <button
                         onClick={() => {
                           setDeletingCourseId(course.courseId);
+                          setDeletingSlotInfo({
+                            day: firstSlot.day,
+                            startTime: firstSlot.startTime,
+                            endTime: firstSlot.endTime,
+                            roomNumber: course.room.length > 0 ? course.room[0] : undefined,
+                          });
                           setShowDeleteConfirm(true);
                         }}
                         className="w-full mt-2 px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100"
                       >
                         <Trash2 size={12} />
-                        Delete
+                        Remove Slot
                       </button>
                     </div>
                   );
@@ -879,6 +909,7 @@ const ManualScheduler = () => {
                                   return (
                                     <div
                                       key={course._id}
+                                      className={`relative group p-2 rounded text-xs font-semibold cursor-move ${colors.bg} ${colors.border} border-2 hover:shadow-md transition-shadow`}
                                       draggable
                                       onDragStart={() =>
                                         handleDragStartFromScheduled(
@@ -892,9 +923,27 @@ const ManualScheduler = () => {
                                         setDraggedCourse(null);
                                         setDraggedFromScheduled(false);
                                       }}
-                                      className={`p-2 rounded text-xs font-semibold cursor-move ${colors.bg} ${colors.border} border-2 hover:shadow-md transition-shadow`}
                                     >
-                                      {course.courseId}
+                                      <div className="flex items-center justify-between gap-1">
+                                        <span>{course.courseId}</span>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDeletingCourseId(course.courseId);
+                                            setDeletingSlotInfo({
+                                              day,
+                                              startTime,
+                                              endTime,
+                                              roomNumber: course.room.length > 0 ? course.room[0] : undefined,
+                                            });
+                                            setShowDeleteConfirm(true);
+                                          }}
+                                          className="opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 hover:bg-red-600 text-white rounded p-0.5"
+                                          title="Remove slot"
+                                        >
+                                          <Trash2 size={10} />
+                                        </button>
+                                      </div>
                                     </div>
                                   );
                                 })}
@@ -940,7 +989,7 @@ const ManualScheduler = () => {
       />
 
       {/* Delete Confirmation Modal */}
-      {showDeleteConfirm && deletingCourseId && (
+      {showDeleteConfirm && deletingCourseId && deletingSlotInfo && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div
             className="bg-white rounded-xl shadow-2xl max-w-sm w-full"
@@ -951,12 +1000,15 @@ const ManualScheduler = () => {
               <AlertTriangle className="text-red-600 flex-shrink-0 mt-1" size={24} />
               <div>
                 <h3 className="text-lg font-bold text-gray-900">
-                  Delete Schedule?
+                  Remove Slot?
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Are you sure you want to delete the schedule for{" "}
-                  <strong>{deletingCourseId}</strong>? This action cannot be
-                  undone.
+                  Are you sure you want to remove the time slot for{" "}
+                  <strong>{deletingCourseId}</strong>
+                  {deletingSlotInfo && (
+                    <> ({deletingSlotInfo.day} {deletingSlotInfo.startTime}–{deletingSlotInfo.endTime})</>
+                  )}
+                  ? This action cannot be undone.
                 </p>
               </div>
             </div>
@@ -967,6 +1019,7 @@ const ManualScheduler = () => {
                 onClick={() => {
                   setShowDeleteConfirm(false);
                   setDeletingCourseId(null);
+                  setDeletingSlotInfo(null);
                 }}
                 disabled={isScheduling}
                 className="flex-1 px-4 py-2.5 rounded-lg border border-gray-300 text-gray-700 font-medium hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -978,7 +1031,7 @@ const ManualScheduler = () => {
                 disabled={isScheduling}
                 className="flex-1 px-4 py-2.5 rounded-lg bg-red-600 text-white font-medium hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isScheduling ? "Deleting..." : "Delete"}
+                {isScheduling ? "Removing..." : "Remove"}
               </button>
             </div>
           </div>

@@ -94,12 +94,24 @@ class SchedulingService {
         break;
 
       case "DELETE":
-        // DELETE: only courseId
+        // DELETE: send as REPLACE with only prev info (no new slot/room)
+        // Backend will remove the schedule when new slot info is missing
         if (!data.courseId) {
           throw new Error("Missing courseId for DELETE operation");
         }
+
+        // We need to get the current timeslot info to send as prevDay/prevStartTime/prevEndTime
+        // This will be provided by the caller
+        if (!data.prevDay || !data.prevStartTime || !data.prevEndTime) {
+          throw new Error("Missing previous slot information for DELETE operation");
+        }
+
         requestBody = {
           courseId: data.courseId,
+          prevDay: data.prevDay,
+          prevStartTime: data.prevStartTime,
+          prevEndTime: data.prevEndTime,
+          ...(data.prevRoomNumber ? { prevRoomNumber: data.prevRoomNumber } : {}),
         };
         break;
 

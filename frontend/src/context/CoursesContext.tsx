@@ -26,7 +26,7 @@ interface CoursesContextType {
   courses: Course[];
   loading: boolean;
   error: string | null;
-  refetch: () => void;
+  refetch: () => Promise<void>;
 }
 
 const CoursesContext = createContext<CoursesContextType | undefined>(undefined);

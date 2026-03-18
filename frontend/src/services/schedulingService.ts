@@ -1,10 +1,26 @@
 import { buildApiUrl } from "../lib/api";
 
+// Legacy interface for backward compatibility
 export interface SchedulingRequest {
   courseId: string;
   slotCode: string;
   roomNumber: string;
 }
+
+// New interface for manual scheduling operations
+export interface ManualSchedulingRequest {
+  courseId: string;
+  day?: string;
+  startTime?: string;
+  endTime?: string;
+  roomNumber?: string;
+  prevDay?: string;
+  prevStartTime?: string;
+  prevEndTime?: string;
+  prevRoomNumber?: string;
+}
+
+export type ManualSchedulingAction = "ADD" | "DELETE" | "REPLACE";
 
 export interface SchedulingResponse {
   message: string;
@@ -42,6 +58,111 @@ export interface Slot {
 }
 
 class SchedulingService {
+  /**
+   * Unified handler for manual scheduling operations (ADD, DELETE, REPLACE)
+   * @param actionType - Type of operation: "ADD", "DELETE", "REPLACE"
+   * @param data - Course and timing data
+   */
+  async handleManualScheduling(
+    actionType: ManualSchedulingAction,
+    data: ManualSchedulingRequest,
+  ): Promise<SchedulingResponse> {
+    const token = localStorage.getItem("token");
+
+    // Construct request body based on action type
+    let requestBody: ManualSchedulingRequest;
+
+    switch (actionType) {
+      case "ADD":
+        // ADD: courseId, day, startTime, endTime, roomNumber
+        if (
+          !data.courseId ||
+          !data.day ||
+          !data.startTime ||
+          !data.endTime ||
+          !data.roomNumber
+        ) {
+          throw new Error("Missing required fields for ADD operation");
+        }
+        requestBody = {
+          courseId: data.courseId,
+          day: data.day,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          roomNumber: data.roomNumber,
+        };
+        break;
+
+      case "DELETE":
+        // DELETE: only courseId
+        if (!data.courseId) {
+          throw new Error("Missing courseId for DELETE operation");
+        }
+        requestBody = {
+          courseId: data.courseId,
+        };
+        break;
+
+      case "REPLACE":
+        // REPLACE: courseId, day, startTime, endTime, roomNumber, prevDay, prevStartTime, prevEndTime, prevRoomNumber
+        if (
+          !data.courseId ||
+          !data.day ||
+          !data.startTime ||
+          !data.endTime ||
+          !data.roomNumber ||
+          !data.prevDay ||
+          !data.prevStartTime ||
+          !data.prevEndTime
+        ) {
+          throw new Error("Missing required fields for REPLACE operation");
+        }
+        requestBody = {
+          courseId: data.courseId,
+          day: data.day,
+          startTime: data.startTime,
+          endTime: data.endTime,
+          roomNumber: data.roomNumber,
+          prevDay: data.prevDay,
+          prevStartTime: data.prevStartTime,
+          prevEndTime: data.prevEndTime,
+          ...(data.prevRoomNumber ? { prevRoomNumber: data.prevRoomNumber } : {}),
+        };
+        break;
+
+      default:
+        throw new Error(`Unknown action type: ${actionType}`);
+    }
+
+    console.log(`[Frontend] Sending ${actionType} request:`, requestBody);
+
+    const response = await fetch(buildApiUrl("/api/manual-schedule"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    if (!response.ok) {
+      let errorMessage = `Failed to ${actionType.toLowerCase()} course: ${response.status}`;
+
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
+      } catch {
+        // Ignore parse errors and use fallback message.
+      }
+
+      throw new Error(
+        errorMessage,
+      );
+    }
+
+    return response.json();
+  }
+
   async manualScheduleCourse(
     request: SchedulingRequest,
   ): Promise<SchedulingResponse> {

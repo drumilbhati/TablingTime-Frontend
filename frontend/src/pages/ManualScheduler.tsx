@@ -21,10 +21,22 @@ const DAY_FULL: Record<string, string> = {
   Sat: "Saturday",
 };
 
-const toFullDayName = (day: string): string => DAY_FULL[day] ?? day;
+const toFullDayName = (day: string): string => {
+  // Strip trailing numbers first (e.g., "Monday1" → "Monday")
+  const dayWithoutNumber = day.replace(/\d+$/, "");
+  // If it's already a full name, return it without numbers
+  if (["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"].includes(dayWithoutNumber)) {
+    return dayWithoutNumber;
+  }
+  // Otherwise try to convert from short form
+  return DAY_FULL[day] ?? day;
+};
 
-// Map full day names to short form
+// Map full day names to short form and strip any trailing numbers
 const toShortDayName = (day: string): string => {
+  // Strip trailing numbers (e.g., "Monday1" → "Monday")
+  const dayWithoutNumber = day.replace(/\d+$/, "");
+
   const fullToShort: Record<string, string> = {
     Monday: "Mon",
     Tuesday: "Tue",
@@ -33,7 +45,7 @@ const toShortDayName = (day: string): string => {
     Friday: "Fri",
     Saturday: "Sat",
   };
-  return fullToShort[day] ?? day;
+  return fullToShort[dayWithoutNumber] ?? day;
 };
 
 const COURSE_TYPE_COLORS: Record<
@@ -332,20 +344,36 @@ const ManualScheduler = () => {
   // Get slot for a specific day and time
   const getSlotForDayTime = useCallback(
     (day: string, startTime: string, endTime: string): Slot | null => {
+      console.log("🔍 getSlotForDayTime called:", { day, startTime, endTime });
+      console.log("🔍 Total slots available:", slots.length);
+
       // Try to find in slots API first
       if (slots.length > 0) {
-        return (
-          slots.find(
-            (slot) =>
-              slot.days.includes(day) &&
-              slot.startTime === startTime &&
-              slot.endTime === endTime,
-          ) || null
-        );
+        const matchingSlot = slots.find((slot) => {
+          // Normalize slot day names and check if any match the target day
+          const normalizedSlotDays = slot.days.map(toShortDayName);
+          const matches = (
+            normalizedSlotDays.includes(day) &&
+            slot.startTime === startTime &&
+            slot.endTime === endTime
+          );
+
+          if (matches) {
+            console.log("✅ Found matching slot:", slot);
+          }
+
+          return matches;
+        });
+
+        if (matchingSlot) {
+          return matchingSlot;
+        } else {
+          console.log("⚠️ No matching slot found, creating mock slot");
+        }
       }
 
-      // If no slots from API, create a mock slot for drag-drop to work
-      return {
+      // If no slots from API or no match found, create a mock slot for drag-drop to work
+      const mockSlot = {
         _id: `${day}-${startTime}-${endTime}`,
         code: `${day}-${startTime}`,
         credit: 3, // Default credit
@@ -354,6 +382,8 @@ const ManualScheduler = () => {
         endTime,
         timings: [`${startTime}-${endTime}`],
       };
+      console.log("🔧 Returning mock slot:", mockSlot);
+      return mockSlot;
     },
     [slots],
   );

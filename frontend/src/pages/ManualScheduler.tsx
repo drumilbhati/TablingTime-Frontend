@@ -49,6 +49,7 @@ const ManualScheduler = () => {
     courses,
     loading: coursesLoading,
     error: coursesError,
+    refetch: refetchCourses,
   } = useCourses();
   const { userRole } = useAuth();
   const [slots, setSlots] = useState<Slot[]>([]);
@@ -96,10 +97,16 @@ const ManualScheduler = () => {
     fetchData();
   }, []);
 
-  // Get unscheduled courses (no timeslots)
+  // Categorize courses into scheduled and unscheduled
+  const scheduledCourses = courses.filter(
+    (course) => course.timeslots && course.timeslots.length > 0,
+  );
   const unscheduledCourses = courses.filter(
     (course) => !course.timeslots || course.timeslots.length === 0,
   );
+
+  // All courses available for scheduling/rescheduling
+  const allAvailableCourses = [...unscheduledCourses, ...scheduledCourses];
 
   // Get unique timeslots across all slots
   const getUniqueTimeslots = useCallback((): {
@@ -191,16 +198,20 @@ const ManualScheduler = () => {
         roomNumber,
       });
 
+      const wasScheduled = draggedCourse.timeslots && draggedCourse.timeslots.length > 0;
+      const actionText = wasScheduled ? "rescheduled" : "scheduled";
+
       setSchedulingSuccess(
-        `${draggedCourse.courseId} scheduled successfully in Room ${roomNumber}!`,
+        `${draggedCourse.courseId} ${actionText} successfully in Room ${roomNumber}!`,
       );
       setShowRoomSelector(false);
       setDraggedCourse(null);
       setSelectedSlot(null);
 
-      // Refresh rooms data
+      // Refresh rooms and courses data
       const updatedRooms = await schedulingService.getAllRooms();
       setRooms(updatedRooms);
+      refetchCourses();
     } catch (err) {
       setSchedulingError(
         err instanceof Error ? err.message : "Failed to schedule course",
@@ -247,7 +258,7 @@ const ManualScheduler = () => {
         <h1 className="text-2xl font-bold text-gray-900">Manual Scheduler</h1>
         <p className="text-sm text-gray-600 mt-1">
           Drag courses from the left panel and drop them on a time slot to
-          schedule
+          schedule or reschedule
         </p>
       </div>
 
@@ -279,13 +290,13 @@ const ManualScheduler = () => {
 
       {/* Main content */}
       <div className="flex flex-1 min-h-0">
-        {/* Sidebar - Unscheduled Courses */}
+        {/* Sidebar - All Courses */}
         <div className="w-80 border-r border-gray-200 overflow-y-auto flex flex-col flex-shrink-0">
           <div className="p-4 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
-            <h2 className="font-semibold text-gray-900">Unscheduled Courses</h2>
+            <h2 className="font-semibold text-gray-900">All Courses</h2>
             <p className="text-xs text-gray-600 mt-0.5">
-              {unscheduledCourses.length} course
-              {unscheduledCourses.length !== 1 ? "s" : ""}
+              {allAvailableCourses.length} course
+              {allAvailableCourses.length !== 1 ? "s" : ""} ({unscheduledCourses.length} unscheduled)
             </p>
           </div>
 
@@ -298,22 +309,21 @@ const ManualScheduler = () => {
                 />
               ))}
             </div>
-          ) : unscheduledCourses.length === 0 ? (
+          ) : allAvailableCourses.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center text-gray-400 p-4">
                 <BookOpen className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                <div className="text-sm font-medium">
-                  All courses are scheduled!
-                </div>
+                <div className="text-sm font-medium">No courses available</div>
               </div>
             </div>
           ) : (
             <div className="flex-1 overflow-y-auto p-3">
-              {unscheduledCourses.map((course) => {
+              {allAvailableCourses.map((course) => {
                 const colors =
                   COURSE_TYPE_COLORS[course.courseType] ?? DEFAULT_COLORS;
                 const isBeingDragged =
                   draggedCourse?.courseId === course.courseId;
+                const isScheduled = course.timeslots && course.timeslots.length > 0;
 
                 return (
                   <div
@@ -327,12 +337,28 @@ const ManualScheduler = () => {
                         : `${colors.bg} ${colors.border} hover:shadow-md`
                     }`}
                   >
-                    <div className="font-semibold text-gray-900 text-sm">
-                      {course.courseId}
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-semibold text-gray-900 text-sm">
+                        {course.courseId}
+                      </div>
+                      {isScheduled && (
+                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+                          Scheduled
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-gray-600 mt-1 truncate">
                       {course["Course Name"]}
                     </div>
+                    {isScheduled && course.timeslots[0] && (
+                      <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                        <Clock size={10} />
+                        {course.timeslots[0].day} {course.timeslots[0].startTime}
+                        {course.room && course.room.length > 0 && (
+                          <span className="ml-1">• Room {course.room[0]}</span>
+                        )}
+                      </div>
+                    )}
                     <div className="flex gap-2 mt-2 text-xs">
                       <div className="flex items-center gap-1 text-gray-600">
                         <Users size={12} />

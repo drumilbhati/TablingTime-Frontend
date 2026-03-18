@@ -23,6 +23,19 @@ const DAY_FULL: Record<string, string> = {
 
 const toFullDayName = (day: string): string => DAY_FULL[day] ?? day;
 
+// Map full day names to short form
+const toShortDayName = (day: string): string => {
+  const fullToShort: Record<string, string> = {
+    Monday: "Mon",
+    Tuesday: "Tue",
+    Wednesday: "Wed",
+    Thursday: "Thu",
+    Friday: "Fri",
+    Saturday: "Sat",
+  };
+  return fullToShort[day] ?? day;
+};
+
 const COURSE_TYPE_COLORS: Record<
   string,
   { bg: string; border: string; text: string }
@@ -118,6 +131,15 @@ const ManualScheduler = () => {
   const scheduledCourses = displayCourses.filter(
     (course) => course.timeslots && course.timeslots.length > 0,
   );
+
+  // Debug: Log scheduled courses to see their format
+  useEffect(() => {
+    if (scheduledCourses.length > 0) {
+      console.log("📅 Scheduled courses:", scheduledCourses.length);
+      console.log("📅 First scheduled course:", scheduledCourses[0]);
+      console.log("📅 First timeslot:", scheduledCourses[0]?.timeslots?.[0]);
+    }
+  }, [scheduledCourses]);
 
   const validateManualSchedulingInput = (
     actionType: ManualSchedulingAction,
@@ -539,8 +561,8 @@ const ManualScheduler = () => {
       <div className="border-b border-gray-200 px-6 py-4">
         <h1 className="text-2xl font-bold text-gray-900">Manual Scheduler</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Drag courses from the left panel and drop them on a time slot to
-          schedule
+          Drag courses to schedule. Drag from sidebar or from timetable cells
+          to reschedule. Click delete on scheduled courses to remove.
         </p>
       </div>
 
@@ -798,10 +820,11 @@ const ManualScheduler = () => {
                       {/* Day cells - drop zones */}
                       {DAYS.map((day) => {
                         // Get courses scheduled for this slot
+                        // Normalize day names for comparison (support both "Mon" and "Monday")
                         const coursesInSlot = scheduledCourses.filter((course) => {
                           return course.timeslots?.some(
                             (slot) =>
-                              slot.day === day &&
+                              (toShortDayName(slot.day) === day || slot.day === day) &&
                               slot.startTime === startTime &&
                               slot.endTime === endTime
                           );

@@ -66,16 +66,16 @@ const Navbar = () => {
                 Enrolment
               </button>
               <button
-                onClick={() => navigate("/schedule")}
-                className={navButtonClass("/schedule")}
+                onClick={() => navigate("/professor-preferences")}
+                className={navButtonClass("/professor-preferences")}
               >
-                Schedule
+                Prof. Preferences
               </button>
               <button
-                onClick={() => navigate("/manual-schedule")}
-                className={navButtonClass("/manual-schedule")}
+                onClick={() => navigate("/scheduler")}
+                className={navButtonClass("/scheduler")}
               >
-                Manual Scheduler
+                Scheduler
               </button>
             </>
           )}

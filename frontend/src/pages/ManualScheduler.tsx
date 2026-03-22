@@ -1,15 +1,22 @@
-import { useState, useEffect, useCallback } from "react";
-import { AlertCircle, Clock, Users, BookOpen, Trash2, AlertTriangle } from "lucide-react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { AlertCircle, Clock, Users, BookOpen, Trash2, AlertTriangle, Upload } from "lucide-react";
 import { useCourses, type Course } from "../context/CoursesContext";
 import { useAuth } from "../context/AuthContext";
 import RoomSelector from "../components/RoomSelector";
 import schedulingService from "../services/schedulingService";
+import { buildApiUrl } from "../lib/api";
 import type {
   ManualSchedulingAction,
   ManualSchedulingRequest,
 } from "../services/schedulingService";
 import type { Slot } from "../services/schedulingService";
 import ErrorState from "../components/ErrorState";
+
+type SchedulerStatus =
+  | { type: "idle" }
+  | { type: "loading" }
+  | { type: "success"; message: string }
+  | { type: "error"; message: string };
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_FULL: Record<string, string> = {
@@ -93,6 +100,7 @@ const ManualScheduler = () => {
   const [displayCourses, setDisplayCourses] = useState<Course[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
+  const [status, setStatus] = useState<SchedulerStatus>({ type: "idle" });
   const [schedulingError, setSchedulingError] = useState<string | null>(null);
   const [schedulingSuccess, setSchedulingSuccess] = useState<string | null>(
     null,
@@ -117,6 +125,30 @@ const ManualScheduler = () => {
     roomNumber?: string;
   } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const handleDrag = useCallback((e: React.DragEvent) => {
+    if (e.clientX === 0 && e.clientY === 0) return;
+
+    if (tableContainerRef.current) {
+      const scrollableDiv = tableContainerRef.current;
+      const rect = scrollableDiv.getBoundingClientRect();
+      const threshold = 80;
+      const scrollAmount = 15;
+
+      if (e.clientX > rect.right - threshold) {
+        scrollableDiv.scrollLeft += scrollAmount;
+      } else if (e.clientX < rect.left + threshold) {
+        scrollableDiv.scrollLeft -= scrollAmount;
+      }
+
+      if (e.clientY > rect.bottom - threshold) {
+        scrollableDiv.scrollTop += scrollAmount;
+      } else if (e.clientY < rect.top + threshold) {
+        scrollableDiv.scrollTop -= scrollAmount;
+      }
+    }
+  }, []);
 
   useEffect(() => {
     setDisplayCourses(courses);
@@ -139,6 +171,73 @@ const ManualScheduler = () => {
 
     fetchData();
   }, []);
+
+  const handleAutoSchedule = async () => {
+    setStatus({ type: "loading" });
+
+    try {
+      const token = localStorage.getItem("token");
+      const headers = {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      };
+      const schedulerPaths = ["/api/scheduling"];
+      let res: Response | null = null;
+
+      for (const path of schedulerPaths) {
+        const candidate = await fetch(buildApiUrl(path), {
+          method: "GET",
+          headers,
+        });
+
+        if (candidate.status !== 404) {
+          res = candidate;
+          break;
+        }
+      }
+
+      if (!res) {
+        setStatus({
+          type: "error",
+          message:
+            "Scheduler endpoint was not found. Check how the backend route is mounted.",
+        });
+        return;
+      }
+
+      if (!res.ok) {
+        let message = `Server error (${res.status})`;
+
+        try {
+          const data = await res.json();
+          message = data?.message ?? data?.error ?? message;
+        } catch {
+          try {
+            const text = await res.text();
+            if (text) {
+              message = text;
+            }
+          } catch {
+            // Ignore response parse failures and keep the fallback message.
+          }
+        }
+
+        setStatus({ type: "error", message });
+        return;
+      }
+
+      await refetch();
+      setStatus({
+        type: "success",
+        message: "Scheduling completed successfully.",
+      });
+    } catch (err) {
+      setStatus({
+        type: "error",
+        message:
+          err instanceof Error ? err.message : "Unexpected error occurred.",
+      });
+    }
+  };
 
   // Get unscheduled courses (no timeslots)
   const unscheduledCourses = displayCourses.filter(
@@ -612,12 +711,30 @@ const ManualScheduler = () => {
   return (
     <div className="flex flex-col h-[calc(100svh-73px)] bg-white">
       {/* Header */}
-      <div className="border-b border-gray-200 px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-900">Manual Scheduler</h1>
-        <p className="text-sm text-gray-600 mt-1">
-          Drag courses to schedule. Drag from sidebar or from timetable cells
-          to reschedule. Click the X button on scheduled courses to remove their slot.
-        </p>
+      <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Scheduler</h1>
+          <p className="text-sm text-gray-600 mt-1">
+            Drag courses to manually schedule. Or run the auto scheduler to algorithmically assign times and rooms.
+          </p>
+        </div>
+        <button
+          onClick={handleAutoSchedule}
+          disabled={status.type === "loading" || isScheduling}
+          className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {status.type === "loading" ? (
+            <>
+              <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+              Scheduling...
+            </>
+          ) : (
+            <>
+              <Upload size={14} />
+              Auto Schedule
+            </>
+          )}
+        </button>
       </div>
 
       {/* Alerts */}
@@ -646,10 +763,32 @@ const ManualScheduler = () => {
         </div>
       )}
 
+      {status.type === "success" && (
+        <div className="mx-6 mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex gap-3">
+          <div className="text-green-600 flex-shrink-0 mt-0.5">✓</div>
+          <div>
+            <p className="text-sm font-medium text-green-800">
+              {status.message}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {status.type === "error" && (
+        <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
+          <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
+          <div>
+            <p className="text-sm font-medium text-red-800">
+              {status.message}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Main content */}
       <div className="flex flex-1 min-h-0">
         {/* Sidebar - Courses (Unscheduled and Scheduled) */}
-        <div className="w-80 border-r border-gray-200 overflow-y-auto flex flex-col flex-shrink-0">
+        <div className="w-80 border-r border-gray-200 flex flex-col flex-shrink-0 overflow-y-auto bg-white">
           {/* Unscheduled Courses Section */}
           <div className="border-b border-gray-200 flex flex-col flex-shrink-0">
             <div className="p-4 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
@@ -677,7 +816,7 @@ const ManualScheduler = () => {
                 </div>
               </div>
             ) : (
-              <div className="overflow-y-auto p-3">
+              <div className="p-3">
                 {unscheduledCourses.map((course) => {
                   const colors =
                     COURSE_TYPE_COLORS[course.courseType] ?? DEFAULT_COLORS;
@@ -690,6 +829,7 @@ const ManualScheduler = () => {
                       key={course._id}
                       draggable
                       onDragStart={() => handleDragStart(course)}
+                      onDrag={handleDrag}
                       onDragEnd={() => {
                         setDraggedCourse(null);
                         setDraggedFromScheduled(false);
@@ -724,7 +864,7 @@ const ManualScheduler = () => {
           </div>
 
           {/* Scheduled Courses Section */}
-          <div className="flex flex-col flex-1 min-h-0">
+          <div className="flex flex-col flex-shrink-0">
             <div className="p-4 border-b border-gray-200 bg-blue-50 sticky top-0 z-10">
               <h2 className="font-semibold text-gray-900">Scheduled Courses</h2>
               <p className="text-xs text-gray-600 mt-0.5">
@@ -753,7 +893,7 @@ const ManualScheduler = () => {
                 </div>
               </div>
             ) : (
-              <div className="overflow-y-auto p-3">
+              <div className="p-3">
                 {scheduledCourses.map((course) => {
                   const colors =
                     COURSE_TYPE_COLORS[course.courseType] ?? DEFAULT_COLORS;
@@ -785,6 +925,7 @@ const ManualScheduler = () => {
                               firstSlot.endTime,
                             )
                           }
+                          onDrag={handleDrag}
                           onDragEnd={() => {
                             setDraggedCourse(null);
                             setDraggedFromScheduled(false);
@@ -848,7 +989,10 @@ const ManualScheduler = () => {
               </div>
             </div>
           ) : (
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-auto">
+            <div
+              ref={tableContainerRef}
+              className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-auto"
+            >
               <table className="w-full border-collapse">
                 <thead>
                   <tr className="bg-gray-50">

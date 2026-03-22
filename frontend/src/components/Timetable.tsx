@@ -48,6 +48,18 @@ const DEFAULT_COLORS = {
   selectedBg: "bg-gray-700",
 };
 
+const formatRooms = (rooms: any[]) => {
+  if (!rooms || rooms.length === 0) return "";
+  const valid = rooms
+    .map((r) => {
+      if (typeof r === "string") return r === "[object Object]" ? "" : r;
+      if (r && typeof r === "object") return r.roomNumber || r.name || r._id || "";
+      return String(r);
+    })
+    .filter(Boolean);
+  return valid.join(", ");
+};
+
 interface CourseDetailsModalProps {
   course: Course;
   day: string;
@@ -149,7 +161,7 @@ const CourseDetailsModal = ({
                 Room
               </div>
               <div className="text-sm font-semibold text-gray-800 mt-1">
-                {course.room.length > 0 ? course.room.join(", ") : "—"}
+                {formatRooms(course.room) || "—"}
               </div>
             </div>
           </div>
@@ -339,7 +351,7 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
                                 >
                                   {course["Course Name"]}
                                 </div>
-                                {course.room.length > 0 && (
+                                {formatRooms(course.room) && (
                                   <div
                                     className={`mt-0.5 ${
                                       isSelected
@@ -347,7 +359,7 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
                                         : "opacity-50"
                                     }`}
                                   >
-                                    🏫 {course.room.join(", ")}
+                                    🏫 {formatRooms(course.room)}
                                   </div>
                                 )}
                               </button>

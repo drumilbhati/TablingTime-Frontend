@@ -6,7 +6,7 @@ import TimetablePage from "./pages/TimetablePage.tsx";
 
 import OccupiedRooms from "./pages/OccupiedRooms.tsx";
 import EnrolmentPage from "./pages/EnrolmentPage.tsx";
-import SchedulePage from "./pages/SchedulePage.tsx";
+import ProfessorPreferences from "./pages/ProfessorPreferences.tsx";
 import ManualScheduler from "./pages/ManualScheduler.tsx";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "./context/AuthContext.tsx";
@@ -55,15 +55,15 @@ function App() {
                 }
               />
               <Route
-                path="/schedule"
+                path="/professor-preferences"
                 element={
                   <AdminRoute>
-                    <SchedulePage />
+                    <ProfessorPreferences />
                   </AdminRoute>
                 }
               />
               <Route
-                path="/manual-schedule"
+                path="/scheduler"
                 element={
                   <AdminRoute>
                     <ManualScheduler />

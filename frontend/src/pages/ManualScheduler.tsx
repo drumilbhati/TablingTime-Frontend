@@ -11,6 +11,7 @@ import type {
 } from "../services/schedulingService";
 import type { Slot } from "../services/schedulingService";
 import ErrorState from "../components/ErrorState";
+import PartialTimetableUploadModal from "../components/PartialTimetableUploadModal";
 
 type SchedulerStatus =
   | { type: "idle" }
@@ -125,6 +126,7 @@ const ManualScheduler = () => {
     roomNumber?: string;
   } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showPartialUploadDialog, setShowPartialUploadDialog] = useState(false);
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -718,23 +720,33 @@ const ManualScheduler = () => {
             Drag courses to manually schedule. Or run the auto scheduler to algorithmically assign times and rooms.
           </p>
         </div>
-        <button
-          onClick={handleAutoSchedule}
-          disabled={status.type === "loading" || isScheduling}
-          className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {status.type === "loading" ? (
-            <>
-              <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
-              Scheduling...
-            </>
-          ) : (
-            <>
-              <Upload size={14} />
-              Auto Schedule
-            </>
-          )}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowPartialUploadDialog(true)}
+            disabled={status.type === "loading" || isScheduling}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Upload size={14} />
+            Partial Timetable
+          </button>
+          <button
+            onClick={handleAutoSchedule}
+            disabled={status.type === "loading" || isScheduling}
+            className="inline-flex items-center gap-2 rounded-lg bg-gray-900 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {status.type === "loading" ? (
+              <>
+                <span className="h-3.5 w-3.5 rounded-full border-2 border-white/40 border-t-white animate-spin" />
+                Scheduling...
+              </>
+            ) : (
+              <>
+                <Upload size={14} />
+                Auto Schedule
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Alerts */}
@@ -1180,6 +1192,17 @@ const ManualScheduler = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Partial Timetable Upload Modal */}
+      {showPartialUploadDialog && (
+        <PartialTimetableUploadModal
+          onClose={() => setShowPartialUploadDialog(false)}
+          onSuccess={() => {
+            setShowPartialUploadDialog(false);
+            refetch();
+          }}
+        />
       )}
     </div>
   );

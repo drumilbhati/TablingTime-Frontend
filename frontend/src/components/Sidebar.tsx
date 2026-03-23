@@ -13,10 +13,14 @@ const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
 
   const filteredCourses = courses.filter((course) => {
     const q = searchQuery.toLowerCase();
+    const courseId = (course.courseId || "").toLowerCase();
+    const courseName = (course["Course Name"] || "").toLowerCase();
+    const courseCode = (course["Course Code"] || "").toLowerCase();
+    
     return (
-      course.courseId.toLowerCase().includes(q) ||
-      course["Course Name"].toLowerCase().includes(q) ||
-      course["Course Code"].toLowerCase().includes(q)
+      courseId.includes(q) ||
+      courseName.includes(q) ||
+      courseCode.includes(q)
     );
   });
 

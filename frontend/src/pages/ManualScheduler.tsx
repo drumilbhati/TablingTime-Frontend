@@ -63,6 +63,50 @@ const extractRoomNumber = (room: any): string | undefined => {
   return String(room);
 };
 
+const getNumericCredit = (value: string | number | undefined): number => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const getExpectedComponentCount = (course: Course): number => {
+  const theoryCredits = getNumericCredit(course.theoryCredits);
+  const labCredits = getNumericCredit(course.labCredits);
+  const componentCount =
+    (theoryCredits > 0 ? 1 : 0) + (labCredits > 0 ? 1 : 0);
+
+  return componentCount > 0 ? componentCount : 1;
+};
+
+const getScheduledComponentCount = (course: Course): number => {
+  if (!course.timeslots?.length) return 0;
+
+  // Theory/lab components are typically assigned as separate slot windows.
+  return new Set(
+    course.timeslots.map((slot) => `${slot.startTime}|${slot.endTime}`),
+  ).size;
+};
+
+const getCourseScheduleState = (
+  course: Course,
+): "unscheduled" | "partial" | "scheduled" => {
+  if (!course.timeslots?.length) {
+    return "unscheduled";
+  }
+
+  const expectedComponents = getExpectedComponentCount(course);
+  const scheduledComponents = getScheduledComponentCount(course);
+
+  if (expectedComponents > 1 && scheduledComponents < expectedComponents) {
+    return "partial";
+  }
+
+  return "scheduled";
+};
+
 const COURSE_TYPE_COLORS: Record<
   string,
   { bg: string; border: string; text: string }
@@ -248,24 +292,30 @@ const ManualScheduler = () => {
     }
   };
 
-  // Get unscheduled courses (no timeslots)
   const unscheduledCourses = displayCourses.filter(
-    (course) => !course.timeslots || course.timeslots.length === 0,
+    (course) => getCourseScheduleState(course) === "unscheduled",
   );
 
-  // Get scheduled courses (have timeslots)
+  const partiallyScheduledCourses = displayCourses.filter(
+    (course) => getCourseScheduleState(course) === "partial",
+  );
+
   const scheduledCourses = displayCourses.filter(
-    (course) => course.timeslots && course.timeslots.length > 0,
+    (course) => getCourseScheduleState(course) === "scheduled",
+  );
+
+  const coursesWithAssignedSlots = displayCourses.filter(
+    (course) => getCourseScheduleState(course) !== "unscheduled",
   );
 
   // Debug: Log scheduled courses to see their format
   useEffect(() => {
-    if (scheduledCourses.length > 0) {
-      console.log("📅 Scheduled courses:", scheduledCourses.length);
-      console.log("📅 First scheduled course:", scheduledCourses[0]);
-      console.log("📅 First timeslot:", scheduledCourses[0]?.timeslots?.[0]);
+    if (coursesWithAssignedSlots.length > 0) {
+      console.log("📅 Courses with assigned slots:", coursesWithAssignedSlots.length);
+      console.log("📅 First assigned course:", coursesWithAssignedSlots[0]);
+      console.log("📅 First timeslot:", coursesWithAssignedSlots[0]?.timeslots?.[0]);
     }
-  }, [scheduledCourses]);
+  }, [coursesWithAssignedSlots]);
 
   const validateManualSchedulingInput = (
     actionType: ManualSchedulingAction,
@@ -454,8 +504,8 @@ const ManualScheduler = () => {
         }
       });
     } else {
-      // If no slots from API, extract from scheduled courses
-      scheduledCourses.forEach((course) => {
+      // If no slots from API, extract from courses with assigned slots
+      coursesWithAssignedSlots.forEach((course) => {
         course.timeslots?.forEach((timeslot) => {
           const key = `${timeslot.startTime}|${timeslot.endTime}`;
           if (!seen.has(key)) {
@@ -471,7 +521,7 @@ const ManualScheduler = () => {
     return Array.from(seen.values()).sort((a, b) =>
       a.startTime.localeCompare(b.startTime),
     );
-  }, [slots, scheduledCourses]);
+  }, [slots, coursesWithAssignedSlots]);
 
   // Get slot for a specific day and time
   const getSlotForDayTime = useCallback(
@@ -882,6 +932,89 @@ const ManualScheduler = () => {
             )}
           </div>
 
+          {/* Partially Scheduled Courses Section */}
+          <div className="border-b border-gray-200 flex flex-col flex-shrink-0">
+            <div className="p-4 border-b border-gray-200 bg-amber-50 sticky top-0 z-10">
+              <h2 className="font-semibold text-gray-900">Partially Scheduled</h2>
+              <p className="text-xs text-gray-600 mt-0.5">
+                {partiallyScheduledCourses.length} course
+                {partiallyScheduledCourses.length !== 1 ? "s" : ""}
+              </p>
+            </div>
+
+            {coursesLoading ? (
+              <div className="p-4 space-y-2">
+                {Array.from({ length: 2 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-20 bg-gray-100 rounded animate-pulse"
+                  />
+                ))}
+              </div>
+            ) : partiallyScheduledCourses.length === 0 ? (
+              <div className="flex items-center justify-center p-4 h-28">
+                <div className="text-center text-gray-400">
+                  <AlertTriangle className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                  <div className="text-xs font-medium">No partial courses</div>
+                </div>
+              </div>
+            ) : (
+              <div className="p-3">
+                {partiallyScheduledCourses.map((course) => {
+                  const colors =
+                    COURSE_TYPE_COLORS[course.courseType] ?? DEFAULT_COLORS;
+                  const isBeingDragged =
+                    draggedCourse?.courseId === course.courseId &&
+                    !draggedFromScheduled;
+
+                  return (
+                    <div
+                      key={course._id}
+                      draggable
+                      onDragStart={() => handleDragStart(course)}
+                      onDrag={handleDrag}
+                      onDragEnd={() => {
+                        setDraggedCourse(null);
+                        setDraggedFromScheduled(false);
+                      }}
+                      className={`p-3 rounded-lg border-2 cursor-move mb-2 transition-all ${
+                        isBeingDragged
+                          ? "opacity-50 scale-95"
+                          : `${colors.bg} ${colors.border} hover:shadow-md`
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="font-semibold text-gray-900 text-sm">
+                          {course.courseId}
+                        </div>
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                          Partial
+                        </span>
+                      </div>
+                      <div className="text-xs text-gray-600 mt-1 truncate">
+                        {course["Course Name"]}
+                      </div>
+                      <div className="text-xs text-amber-700 mt-1">
+                        {course.timeslots.length} slot
+                        {course.timeslots.length !== 1 ? "s" : ""} assigned
+                      </div>
+                      <div className="flex gap-2 mt-2 text-xs">
+                        <div className="flex items-center gap-1 text-gray-600">
+                          <Users size={12} />
+                          {course.studentId.length}
+                        </div>
+                        <div className="flex items-center gap-1 text-gray-600">
+                          <Clock size={12} />
+                          {course.Credits}cr
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           {/* Scheduled Courses Section */}
           <div className="flex flex-col flex-shrink-0">
             <div className="p-4 border-b border-gray-200 bg-blue-50 sticky top-0 z-10">
@@ -1044,7 +1177,7 @@ const ManualScheduler = () => {
                       {DAYS.map((day) => {
                         // Get courses scheduled for this slot
                         // Normalize day names for comparison (support both "Mon" and "Monday")
-                        const coursesInSlot = scheduledCourses.filter((course) => {
+                        const coursesInSlot = coursesWithAssignedSlots.filter((course) => {
                           return course.timeslots?.some(
                             (slot) =>
                               (toShortDayName(slot.day) === day || slot.day === day) &&

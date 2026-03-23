@@ -9,6 +9,11 @@ interface TimeSlot {
   _id: string;
 }
 
+interface RoomAssignment {
+  roomNumber?: string;
+  slot?: string;
+}
+
 export interface Course {
   _id: string;
   courseId: string;
@@ -18,8 +23,12 @@ export interface Course {
   Credits: string;
   courseType: string;
   studentId: string[];
-  room: string[];
+  room: Array<string | RoomAssignment>;
   timeslots: TimeSlot[];
+  timing?: string[];
+  theoryCredits?: string | number;
+  labCredits?: string | number;
+  isAllocated?: boolean;
 }
 
 interface CoursesContextType {

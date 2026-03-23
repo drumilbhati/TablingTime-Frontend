@@ -56,6 +56,13 @@ const toShortDayName = (day: string): string => {
   return fullToShort[dayWithoutNumber] ?? day;
 };
 
+const extractRoomNumber = (room: any): string | undefined => {
+  if (!room) return undefined;
+  if (typeof room === "string") return room;
+  if (typeof room === "object" && room.roomNumber) return String(room.roomNumber);
+  return String(room);
+};
+
 const COURSE_TYPE_COLORS: Record<
   string,
   { bg: string; border: string; text: string }
@@ -531,7 +538,7 @@ const ManualScheduler = () => {
     console.log("🎯 Dragging FROM SCHEDULED:", course.courseId, "from", { day, startTime, endTime });
     setDraggedCourse(course);
     setDraggedFromScheduled(true);
-    const roomNumber = course.room.length > 0 ? course.room[0] : undefined;
+    const roomNumber = course.room.length > 0 ? extractRoomNumber(course.room[0]) : undefined;
     setDragSource({ day, startTime, endTime, roomNumber });
     setSchedulingError(null);
     setSchedulingSuccess(null);
@@ -963,7 +970,7 @@ const ManualScheduler = () => {
                             day: firstSlot.day,
                             startTime: firstSlot.startTime,
                             endTime: firstSlot.endTime,
-                            roomNumber: course.room.length > 0 ? course.room[0] : undefined,
+                            roomNumber: course.room.length > 0 ? extractRoomNumber(course.room[0]) : undefined,
                           });
                           setShowDeleteConfirm(true);
                         }}
@@ -1090,7 +1097,7 @@ const ManualScheduler = () => {
                                               day,
                                               startTime,
                                               endTime,
-                                              roomNumber: course.room.length > 0 ? course.room[0] : undefined,
+                                              roomNumber: course.room.length > 0 ? extractRoomNumber(course.room[0]) : undefined,
                                             });
                                             setShowDeleteConfirm(true);
                                           }}

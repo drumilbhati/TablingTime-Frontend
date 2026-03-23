@@ -56,11 +56,44 @@ const toShortDayName = (day: string): string => {
   return fullToShort[dayWithoutNumber] ?? day;
 };
 
-const extractRoomNumber = (room: any): string | undefined => {
-  if (!room) return undefined;
-  if (typeof room === "string") return room;
-  if (typeof room === "object" && room.roomNumber) return String(room.roomNumber);
-  return String(room);
+const normalizeDayToken = (value: string): string => value.replace(/\d+$/, "").toLowerCase();
+
+const getRoomNumberForSlot = (
+  course: Course,
+  day: string,
+  startTime: string,
+  endTime: string,
+): string | undefined => {
+  if (!course.room?.length) return undefined;
+
+  const targetDayShort = normalizeDayToken(toShortDayName(day));
+  const targetDayFull = normalizeDayToken(toFullDayName(day));
+
+  const structuredAssignments = course.room.filter(
+    (room): room is { roomNumber?: string; slot?: string } =>
+      typeof room === "object" && room !== null,
+  );
+
+  const matchedAssignment = structuredAssignments.find((room) => {
+    const slot = String(room.slot ?? "").toLowerCase();
+    if (!slot) return false;
+
+    const dayMatches =
+      slot.includes(targetDayShort) || slot.includes(targetDayFull);
+    const timeMatches = slot.includes(startTime) && slot.includes(endTime);
+
+    return dayMatches && timeMatches;
+  });
+
+  if (matchedAssignment?.roomNumber) {
+    return String(matchedAssignment.roomNumber);
+  }
+
+  if (structuredAssignments.length === 1 && structuredAssignments[0]?.roomNumber) {
+    return String(structuredAssignments[0].roomNumber);
+  }
+
+  return undefined;
 };
 
 const getNumericCredit = (value: string | number | undefined): number => {
@@ -588,7 +621,7 @@ const ManualScheduler = () => {
     console.log("🎯 Dragging FROM SCHEDULED:", course.courseId, "from", { day, startTime, endTime });
     setDraggedCourse(course);
     setDraggedFromScheduled(true);
-    const roomNumber = course.room.length > 0 ? extractRoomNumber(course.room[0]) : undefined;
+    const roomNumber = getRoomNumberForSlot(course, day, startTime, endTime);
     setDragSource({ day, startTime, endTime, roomNumber });
     setSchedulingError(null);
     setSchedulingSuccess(null);
@@ -1103,7 +1136,12 @@ const ManualScheduler = () => {
                             day: firstSlot.day,
                             startTime: firstSlot.startTime,
                             endTime: firstSlot.endTime,
-                            roomNumber: course.room.length > 0 ? extractRoomNumber(course.room[0]) : undefined,
+                            roomNumber: getRoomNumberForSlot(
+                              course,
+                              firstSlot.day,
+                              firstSlot.startTime,
+                              firstSlot.endTime,
+                            ),
                           });
                           setShowDeleteConfirm(true);
                         }}
@@ -1230,7 +1268,12 @@ const ManualScheduler = () => {
                                               day,
                                               startTime,
                                               endTime,
-                                              roomNumber: course.room.length > 0 ? extractRoomNumber(course.room[0]) : undefined,
+                                              roomNumber: getRoomNumberForSlot(
+                                                course,
+                                                day,
+                                                startTime,
+                                                endTime,
+                                              ),
                                             });
                                             setShowDeleteConfirm(true);
                                           }}

@@ -30,29 +30,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const validateToken = async () => {
       const token = localStorage.getItem("token");
+      const storedUser = localStorage.getItem("user");
 
       if (!token) {
-        // No token stored — definitely logged out, nothing to validate.
         setAuthLoading(false);
         return;
       }
 
-      // Optimistically apply the cached role from localStorage while the
-      // network request is in flight, so the navbar doesn't flicker.
+      // Optimistically apply the cached role immediately to prevent flicker
       try {
-        const cachedUser = JSON.parse(localStorage.getItem("user") ?? "{}");
-        if (cachedUser?.role) {
-          setIsAuthenticated(true);
-          setUserRole(cachedUser.role);
-          setUserName(cachedUser.name ?? null);
-          setUserId(cachedUser._id ?? null);
+        if (storedUser) {
+          const cachedUser = JSON.parse(storedUser);
+          if (cachedUser?.role) {
+            setIsAuthenticated(true);
+            setUserRole(cachedUser.role);
+            setUserName(cachedUser.name ?? null);
+            setUserId(cachedUser._id ?? null);
+          }
         }
-      } catch {
-        // Ignore malformed cache — the server response is authoritative.
+      } catch (err) {
+        console.warn("Malformed cached user data:", err);
       }
 
-      // Confirm with the server that the token is still valid and get the
-      // canonical role (in case it was updated since the token was issued).
       try {
         const res = await fetch(buildApiUrl("/auth/role"), {
           headers: {
@@ -60,33 +59,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           },
         });
 
-        if (!res.ok) {
-          // 401 = expired/invalid token, 404 = user deleted — either way, log out.
-          throw new Error(`Status ${res.status}`);
+        if (res.status === 401 || res.status === 403 || res.status === 404) {
+          // Explicit rejection from server - session is invalid
+          throw new Error("Session expired or invalid");
         }
 
-        const data = await res.json();
-        setIsAuthenticated(true);
-        setUserRole(data.role);
+        if (res.ok) {
+          const data = await res.json();
+          setIsAuthenticated(true);
+          setUserRole(data.role);
 
-        // Keep the cached user object's role in sync.
-        try {
-          const cachedUser = JSON.parse(localStorage.getItem("user") ?? "{}");
-          const updatedUser = { ...cachedUser, role: data.role };
-          localStorage.setItem("user", JSON.stringify(updatedUser));
-          setUserName(updatedUser.name ?? null);
-          setUserId(updatedUser._id ?? null);
-        } catch {
-          // Non-critical — best effort cache update.
+          // Update cache with latest role from server
+          try {
+            const cachedUser = JSON.parse(localStorage.getItem("user") ?? "{}");
+            const updatedUser = { ...cachedUser, role: data.role };
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+            setUserName(updatedUser.name ?? null);
+            setUserId(updatedUser._id ?? null);
+          } catch {
+            // Non-critical cache update failure
+          }
         }
       } catch (err) {
-        console.warn("Token validation failed, logging out:", err);
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-        setIsAuthenticated(false);
-        setUserRole(null);
-        setUserName(null);
-        setUserId(null);
+        console.warn("Token validation failed:", err);
+        // Only logout if we are sure the token is invalid (optional check)
+        // For now, if the check fails explicitly (like 401), we clear state.
+        if (err instanceof Error && err.message === "Session expired or invalid") {
+          logout();
+        }
       } finally {
         setAuthLoading(false);
       }

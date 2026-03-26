@@ -57,7 +57,49 @@ export interface Slot {
   timings: string[];
 }
 
+export type CourseCategory = "GER" | "CORE" | "ELECTIVE";
+export type ProfessorPreferenceMode = "strict" | "last";
+
+export interface AutoScheduleOptions {
+  priorityOrder: CourseCategory[];
+  professorPreferenceMode: ProfessorPreferenceMode;
+}
+
 class SchedulingService {
+  async runAutoScheduler(
+    options: AutoScheduleOptions,
+  ): Promise<{ success: boolean; message?: string }> {
+    const token = localStorage.getItem("token");
+    const response = await fetch(buildApiUrl("/api/scheduling"), {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(options),
+    });
+
+    if (!response.ok) {
+      let message = `Server error (${response.status})`;
+
+      try {
+        const data = await response.json();
+        message = data?.message ?? data?.error ?? message;
+      } catch {
+        try {
+          const text = await response.text();
+          if (text) message = text;
+        } catch {
+          // Ignore parse errors and use the fallback message.
+        }
+      }
+
+      throw new Error(message);
+    }
+
+    return { success: true };
+  }
+
   /**
    * Unified handler for manual scheduling operations (ADD, DELETE, REPLACE)
    * @param actionType - Type of operation: "ADD", "DELETE", "REPLACE"

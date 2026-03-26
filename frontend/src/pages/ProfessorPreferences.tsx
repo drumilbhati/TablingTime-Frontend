@@ -19,6 +19,131 @@ type PreferenceStatus =
   | { type: "success"; message: string }
   | { type: "error"; message: string };
 
+type PreferenceFormState = {
+  preferDays: string[];
+  avoidDays: string[];
+  avoidBefore: string;
+  avoidAfter: string;
+  avoidRanges: Array<{ start: string; end: string }>;
+};
+
+const DAY_OPTIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+const createEmptyFormState = (): PreferenceFormState => ({
+  preferDays: [],
+  avoidDays: [],
+  avoidBefore: "",
+  avoidAfter: "",
+  avoidRanges: [],
+});
+
+const normalizeTime = (value: string): string | null => {
+  const trimmed = value.trim();
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+
+  const h = Number(match[1]);
+  const m = Number(match[2]);
+  if (!Number.isFinite(h) || !Number.isFinite(m) || h > 23 || m > 59) {
+    return null;
+  }
+
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};
+
+const toRawInput = (state: PreferenceFormState): string => {
+  const lines: string[] = [];
+
+  if (state.preferDays.length > 0) {
+    lines.push(`PREFER_DAYS: ${state.preferDays.join(", ")}`);
+  }
+  if (state.avoidDays.length > 0) {
+    lines.push(`AVOID_DAYS: ${state.avoidDays.join(", ")}`);
+  }
+
+  const before = normalizeTime(state.avoidBefore);
+  if (before) {
+    lines.push(`AVOID_BEFORE: ${before}`);
+  }
+
+  const after = normalizeTime(state.avoidAfter);
+  if (after) {
+    lines.push(`AVOID_AFTER: ${after}`);
+  }
+
+  const ranges = state.avoidRanges
+    .map((range) => {
+      const start = normalizeTime(range.start);
+      const end = normalizeTime(range.end);
+      if (!start || !end) return null;
+      return `${start}-${end}`;
+    })
+    .filter((range): range is string => Boolean(range));
+
+  if (ranges.length > 0) {
+    lines.push(`AVOID_RANGES: ${ranges.join(", ")}`);
+  }
+
+  return lines.join("\n");
+};
+
+const parseRawInputToFormState = (raw: string): PreferenceFormState => {
+  const nextState = createEmptyFormState();
+  const lines = raw.split(/\r?\n/);
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim();
+    if (!line) continue;
+
+    const separatorIndex = line.indexOf(":");
+    if (separatorIndex === -1) continue;
+
+    const key = line.slice(0, separatorIndex).trim().toUpperCase();
+    const value = line.slice(separatorIndex + 1).trim();
+
+    if (key === "PREFER_DAYS") {
+      nextState.preferDays = value
+        .split(",")
+        .map((token) => token.trim())
+        .filter((token) => DAY_OPTIONS.includes(token));
+      continue;
+    }
+
+    if (key === "AVOID_DAYS") {
+      nextState.avoidDays = value
+        .split(",")
+        .map((token) => token.trim())
+        .filter((token) => DAY_OPTIONS.includes(token));
+      continue;
+    }
+
+    if (key === "AVOID_BEFORE") {
+      nextState.avoidBefore = value;
+      continue;
+    }
+
+    if (key === "AVOID_AFTER") {
+      nextState.avoidAfter = value;
+      continue;
+    }
+
+    if (key === "AVOID_RANGES") {
+      nextState.avoidRanges = value
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .map((part) => {
+          const [start, end] = part.split("-").map((token) => token.trim());
+          return { start: start ?? "", end: end ?? "" };
+        })
+        .filter((range) => range.start.length > 0 || range.end.length > 0);
+      continue;
+    }
+  }
+
+  return nextState;
+};
+
 // ─── Preference Modal ────────────────────────────────────────────────────────
 
 interface PreferenceModalProps {
@@ -28,8 +153,65 @@ interface PreferenceModalProps {
 
 const PreferenceModal = ({ user, onClose }: PreferenceModalProps) => {
   const [rawInput, setRawInput] = useState("");
+  const [formState, setFormState] = useState<PreferenceFormState>(
+    createEmptyFormState(),
+  );
   const [status, setStatus] = useState<PreferenceStatus>({ type: "idle" });
   const [isFetching, setIsFetching] = useState(true);
+
+  const handleFormFieldChange = (
+    updater: (state: PreferenceFormState) => PreferenceFormState,
+  ) => {
+    setFormState((current) => {
+      const next = updater(current);
+      setRawInput(toRawInput(next));
+      return next;
+    });
+  };
+
+  const toggleDaySelection = (
+    key: "preferDays" | "avoidDays",
+    day: string,
+  ) => {
+    handleFormFieldChange((current) => {
+      const hasDay = current[key].includes(day);
+      const nextDays = hasDay
+        ? current[key].filter((d) => d !== day)
+        : [...current[key], day];
+
+      return {
+        ...current,
+        [key]: nextDays,
+      };
+    });
+  };
+
+  const addRange = () => {
+    handleFormFieldChange((current) => ({
+      ...current,
+      avoidRanges: [...current.avoidRanges, { start: "", end: "" }],
+    }));
+  };
+
+  const updateRange = (
+    index: number,
+    field: "start" | "end",
+    value: string,
+  ) => {
+    handleFormFieldChange((current) => ({
+      ...current,
+      avoidRanges: current.avoidRanges.map((range, rangeIndex) =>
+        rangeIndex === index ? { ...range, [field]: value } : range,
+      ),
+    }));
+  };
+
+  const removeRange = (index: number) => {
+    handleFormFieldChange((current) => ({
+      ...current,
+      avoidRanges: current.avoidRanges.filter((_, rangeIndex) => rangeIndex !== index),
+    }));
+  };
 
   useEffect(() => {
     // Fetch existing preferences on mount
@@ -42,8 +224,31 @@ const PreferenceModal = ({ user, onClose }: PreferenceModalProps) => {
           // If the API returns the DB preferences sub-document
           if (data && data.rawInput) {
             setRawInput(data.rawInput);
+            setFormState(parseRawInputToFormState(data.rawInput));
           } else if (data && data.preferences && data.preferences.rawInput) {
             setRawInput(data.preferences.rawInput);
+            setFormState(parseRawInputToFormState(data.preferences.rawInput));
+          } else {
+            const fallbackRaw = [
+              data?.preferDays?.length
+                ? `PREFER_DAYS: ${data.preferDays.join(", ")}`
+                : "",
+              data?.avoidDays?.length
+                ? `AVOID_DAYS: ${data.avoidDays.join(", ")}`
+                : "",
+              data?.avoidBefore ? `AVOID_BEFORE: ${data.avoidBefore}` : "",
+              data?.avoidAfter ? `AVOID_AFTER: ${data.avoidAfter}` : "",
+              data?.avoidRanges?.length
+                ? `AVOID_RANGES: ${data.avoidRanges
+                    .map((range: { start: string; end: string }) => `${range.start}-${range.end}`)
+                    .join(", ")}`
+                : "",
+            ]
+              .filter(Boolean)
+              .join("\n");
+
+            setRawInput(fallbackRaw);
+            setFormState(parseRawInputToFormState(fallbackRaw));
           }
         }
       } catch (err) {
@@ -125,12 +330,143 @@ const PreferenceModal = ({ user, onClose }: PreferenceModalProps) => {
 
         <div className="p-5 space-y-4">
           <div>
+            <label className="eyebrow-label mb-2 block">Preferred Days</label>
+            <div className="flex flex-wrap gap-2">
+              {DAY_OPTIONS.map((day) => {
+                const selected = formState.preferDays.includes(day);
+                return (
+                  <button
+                    key={`prefer-${day}`}
+                    type="button"
+                    onClick={() => toggleDaySelection("preferDays", day)}
+                    disabled={isFetching || isSubmitting || isDone}
+                    className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      selected
+                        ? "border-gray-900 bg-gray-900 text-white"
+                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                    } disabled:opacity-50`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
+            <label className="eyebrow-label mb-2 block">Avoid Days</label>
+            <div className="flex flex-wrap gap-2">
+              {DAY_OPTIONS.map((day) => {
+                const selected = formState.avoidDays.includes(day);
+                return (
+                  <button
+                    key={`avoid-${day}`}
+                    type="button"
+                    onClick={() => toggleDaySelection("avoidDays", day)}
+                    disabled={isFetching || isSubmitting || isDone}
+                    className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      selected
+                        ? "border-red-500 bg-red-500 text-white"
+                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                    } disabled:opacity-50`}
+                  >
+                    {day}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="eyebrow-label mb-1.5 block">Avoid Before</label>
+              <input
+                type="time"
+                value={formState.avoidBefore}
+                onChange={(e) =>
+                  handleFormFieldChange((current) => ({
+                    ...current,
+                    avoidBefore: e.target.value,
+                  }))
+                }
+                disabled={isFetching || isSubmitting || isDone}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400 disabled:opacity-50"
+              />
+            </div>
+            <div>
+              <label className="eyebrow-label mb-1.5 block">Avoid After</label>
+              <input
+                type="time"
+                value={formState.avoidAfter}
+                onChange={(e) =>
+                  handleFormFieldChange((current) => ({
+                    ...current,
+                    avoidAfter: e.target.value,
+                  }))
+                }
+                disabled={isFetching || isSubmitting || isDone}
+                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400 disabled:opacity-50"
+              />
+            </div>
+          </div>
+
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="eyebrow-label block">Avoid Time Ranges</label>
+              <button
+                type="button"
+                onClick={addRange}
+                disabled={isFetching || isSubmitting || isDone}
+                className="rounded border border-gray-200 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+              >
+                Add Range
+              </button>
+            </div>
+            <div className="space-y-2">
+              {formState.avoidRanges.length === 0 && (
+                <p className="text-xs text-gray-500">No blocked ranges added.</p>
+              )}
+              {formState.avoidRanges.map((range, index) => (
+                <div key={`range-${index}`} className="flex items-center gap-2">
+                  <input
+                    type="time"
+                    value={range.start}
+                    onChange={(e) => updateRange(index, "start", e.target.value)}
+                    disabled={isFetching || isSubmitting || isDone}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400 disabled:opacity-50"
+                  />
+                  <span className="text-sm text-gray-500">to</span>
+                  <input
+                    type="time"
+                    value={range.end}
+                    onChange={(e) => updateRange(index, "end", e.target.value)}
+                    disabled={isFetching || isSubmitting || isDone}
+                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400 disabled:opacity-50"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeRange(index)}
+                    disabled={isFetching || isSubmitting || isDone}
+                    className="rounded border border-gray-200 px-2 py-2 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <label className="eyebrow-label mb-1.5 block">Preferences (Raw Text)</label>
             <textarea
               value={rawInput}
-              onChange={(e) => setRawInput(e.target.value)}
+              onChange={(e) => {
+                const nextRaw = e.target.value;
+                setRawInput(nextRaw);
+                setFormState(parseRawInputToFormState(nextRaw));
+              }}
               disabled={isFetching || isSubmitting || isDone}
-              placeholder="PREFER_DAYS: Mon, Wed&#10;AVOID_BEFORE: 10:00"
+              placeholder="PREFER_DAYS: Mon, Wed&#10;AVOID_BEFORE: 10:00&#10;AVOID_RANGES: 13:00-14:00"
               className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white text-gray-800 disabled:opacity-50 min-h-[120px]"
             />
             <p className="text-xs text-gray-500 mt-2">
@@ -138,7 +474,8 @@ const PreferenceModal = ({ user, onClose }: PreferenceModalProps) => {
               <b>PREFER_DAYS:</b> Mon, Wed<br />
               <b>AVOID_DAYS:</b> Fri<br />
               <b>AVOID_BEFORE:</b> 10:00<br />
-              <b>AVOID_AFTER:</b> 17:00
+              <b>AVOID_AFTER:</b> 17:00<br />
+              <b>AVOID_RANGES:</b> 09:00-11:00, 14:00-15:00
             </p>
           </div>
 

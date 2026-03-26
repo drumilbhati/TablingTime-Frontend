@@ -4,11 +4,11 @@ import { useCourses, type Course } from "../context/CoursesContext";
 import { useAuth } from "../context/AuthContext";
 import RoomSelector from "../components/RoomSelector";
 import schedulingService from "../services/schedulingService";
-import { buildApiUrl } from "../lib/api";
 import type {
   ManualSchedulingAction,
   ManualSchedulingRequest,
 } from "../services/schedulingService";
+import type { CourseCategory, ProfessorPreferenceMode } from "../services/schedulingService";
 import type { Slot } from "../services/schedulingService";
 import ErrorState from "../components/ErrorState";
 import PartialTimetableUploadModal from "../components/PartialTimetableUploadModal";
@@ -20,6 +20,11 @@ type SchedulerStatus =
   | { type: "error"; message: string };
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const CATEGORY_LABELS: Record<CourseCategory, string> = {
+  GER: "GER",
+  CORE: "CORE",
+  ELECTIVE: "Elective",
+};
 const DAY_FULL: Record<string, string> = {
   Mon: "Monday",
   Tue: "Tuesday",
@@ -211,7 +216,26 @@ const ManualScheduler = () => {
   } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPartialUploadDialog, setShowPartialUploadDialog] = useState(false);
+  const [priorityOrder, setPriorityOrder] = useState<CourseCategory[]>([
+    "GER",
+    "CORE",
+    "ELECTIVE",
+  ]);
+  const [professorPreferenceMode, setProfessorPreferenceMode] =
+    useState<ProfessorPreferenceMode>("strict");
   const tableContainerRef = useRef<HTMLDivElement>(null);
+
+  const movePriority = (index: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= priorityOrder.length) return;
+
+    const nextOrder = [...priorityOrder];
+    [nextOrder[index], nextOrder[targetIndex]] = [
+      nextOrder[targetIndex],
+      nextOrder[index],
+    ];
+    setPriorityOrder(nextOrder);
+  };
 
   const handleDrag = useCallback((e: React.DragEvent) => {
     if (e.clientX === 0 && e.clientY === 0) return;
@@ -262,59 +286,15 @@ const ManualScheduler = () => {
     setStatus({ type: "loading" });
 
     try {
-      const token = localStorage.getItem("token");
-      const headers = {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
-      const schedulerPaths = ["/api/scheduling"];
-      let res: Response | null = null;
-
-      for (const path of schedulerPaths) {
-        const candidate = await fetch(buildApiUrl(path), {
-          method: "GET",
-          headers,
-        });
-
-        if (candidate.status !== 404) {
-          res = candidate;
-          break;
-        }
-      }
-
-      if (!res) {
-        setStatus({
-          type: "error",
-          message:
-            "Scheduler endpoint was not found. Check how the backend route is mounted.",
-        });
-        return;
-      }
-
-      if (!res.ok) {
-        let message = `Server error (${res.status})`;
-
-        try {
-          const data = await res.json();
-          message = data?.message ?? data?.error ?? message;
-        } catch {
-          try {
-            const text = await res.text();
-            if (text) {
-              message = text;
-            }
-          } catch {
-            // Ignore response parse failures and keep the fallback message.
-          }
-        }
-
-        setStatus({ type: "error", message });
-        return;
-      }
+      await schedulingService.runAutoScheduler({
+        priorityOrder,
+        professorPreferenceMode,
+      });
 
       await refetch();
       setStatus({
         type: "success",
-        message: "Scheduling completed successfully.",
+        message: "Scheduling completed successfully with selected priority settings.",
       });
     } catch (err) {
       setStatus({
@@ -807,7 +787,7 @@ const ManualScheduler = () => {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Scheduler</h1>
           <p className="text-sm text-gray-600 mt-1">
-            Drag courses to manually schedule. Or run the auto scheduler to algorithmically assign times and rooms.
+            Drag courses to manually schedule. Configure priority and professor constraint handling before auto scheduling.
           </p>
         </div>
         <div className="flex gap-3">
@@ -836,6 +816,90 @@ const ManualScheduler = () => {
               </>
             )}
           </button>
+        </div>
+      </div>
+
+      <div className="border-b border-gray-200 bg-gray-50 px-6 py-4">
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-gray-900">
+              Course Priority Order
+            </h2>
+            <p className="mt-1 text-xs text-gray-600">
+              Scheduler will allocate categories in this order.
+            </p>
+            <div className="mt-3 space-y-2">
+              {priorityOrder.map((category, index) => (
+                <div
+                  key={category}
+                  className="flex items-center justify-between rounded-md border border-gray-200 px-3 py-2"
+                >
+                  <span className="text-sm font-medium text-gray-800">
+                    {index + 1}. {CATEGORY_LABELS[category]}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => movePriority(index, "up")}
+                      disabled={index === 0 || isScheduling || status.type === "loading"}
+                      className="rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Up
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => movePriority(index, "down")}
+                      disabled={
+                        index === priorityOrder.length - 1 ||
+                        isScheduling ||
+                        status.type === "loading"
+                      }
+                      className="rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      Down
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 bg-white p-4">
+            <h2 className="text-sm font-semibold text-gray-900">
+              Professor Constraints Mode
+            </h2>
+            <p className="mt-1 text-xs text-gray-600">
+              Choose how strictly professor preferences are enforced.
+            </p>
+            <div className="mt-3 space-y-2">
+              <label className="flex cursor-pointer items-start gap-2 rounded-md border border-gray-200 px-3 py-2 hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="preferenceMode"
+                  checked={professorPreferenceMode === "strict"}
+                  onChange={() => setProfessorPreferenceMode("strict")}
+                  disabled={isScheduling || status.type === "loading"}
+                  className="mt-0.5"
+                />
+                <span className="text-sm text-gray-700">
+                  <span className="font-medium text-gray-900">Strict</span>: only preferred slots are used.
+                </span>
+              </label>
+              <label className="flex cursor-pointer items-start gap-2 rounded-md border border-gray-200 px-3 py-2 hover:bg-gray-50">
+                <input
+                  type="radio"
+                  name="preferenceMode"
+                  checked={professorPreferenceMode === "last"}
+                  onChange={() => setProfessorPreferenceMode("last")}
+                  disabled={isScheduling || status.type === "loading"}
+                  className="mt-0.5"
+                />
+                <span className="text-sm text-gray-700">
+                  <span className="font-medium text-gray-900">Fallback</span>: try preferred slots first, then fallback to any valid slot.
+                </span>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
 

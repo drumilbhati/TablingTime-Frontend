@@ -63,6 +63,46 @@ const toShortDayName = (day: string): string => {
 
 const normalizeDayToken = (value: string): string => value.replace(/\d+$/, "").toLowerCase();
 
+const toHalfHourValue = (timeStr: string): number => {
+  const [hours, minutes] = timeStr.split(":").map(Number);
+  return (hours || 0) + ((minutes || 0) === 30 ? 0.5 : 0);
+};
+
+const getDynamicSlotCodes = (day: string, startTime: string, endTime: string): string[] => {
+  const dayPrefixes: Record<string, string> = {
+    Monday: "M",
+    Tuesday: "Tu",
+    Wednesday: "W",
+    Thursday: "Th",
+    Friday: "F",
+    Saturday: "Sa",
+    Mon: "M",
+    Tue: "Tu",
+    Wed: "W",
+    Thu: "Th",
+    Fri: "F",
+    Sat: "Sa",
+  };
+
+  const fullDay = toFullDayName(day);
+  const prefix = dayPrefixes[fullDay] ?? dayPrefixes[day];
+  if (!prefix) return [];
+
+  const start = toHalfHourValue(startTime);
+  const end = toHalfHourValue(endTime);
+  if (start >= end) return [];
+
+  const codes: string[] = [];
+  let current = start;
+  while (current < end - 0.1) {
+    const slotIndex = Math.round((current - 8.0) / 0.5) + 1;
+    codes.push(`${prefix}${slotIndex}`);
+    current += 0.5;
+  }
+
+  return codes;
+};
+
 const getRoomNumberForSlot = (
   course: Course,
   day: string,
@@ -94,8 +134,31 @@ const getRoomNumberForSlot = (
     return String(matchedAssignment.roomNumber);
   }
 
+  const dynamicSlots = getDynamicSlotCodes(day, startTime, endTime);
+  if (dynamicSlots.length > 0) {
+    const dynamicMatch = structuredAssignments.find((room) =>
+      dynamicSlots.includes(String(room.slot ?? "")),
+    );
+
+    if (dynamicMatch?.roomNumber) {
+      return String(dynamicMatch.roomNumber);
+    }
+  }
+
   if (structuredAssignments.length === 1 && structuredAssignments[0]?.roomNumber) {
     return String(structuredAssignments[0].roomNumber);
+  }
+
+  const firstRoomWithNumber = structuredAssignments.find((room) => room.roomNumber);
+  if (firstRoomWithNumber?.roomNumber) {
+    return String(firstRoomWithNumber.roomNumber);
+  }
+
+  const legacyStringRoom = course.room.find(
+    (room): room is string => typeof room === "string" && room.trim().length > 0,
+  );
+  if (legacyStringRoom) {
+    return legacyStringRoom;
   }
 
   return undefined;
@@ -483,6 +546,23 @@ const ManualScheduler = () => {
   const handleDeleteCourseConfirm = async () => {
     if (!deletingCourseId || !deletingSlotInfo) return;
 
+    const sourceCourse = displayCourses.find((course) => course.courseId === deletingCourseId);
+    const resolvedRoomNumber =
+      deletingSlotInfo.roomNumber ||
+      (sourceCourse
+        ? getRoomNumberForSlot(
+            sourceCourse,
+            deletingSlotInfo.day,
+            deletingSlotInfo.startTime,
+            deletingSlotInfo.endTime,
+          )
+        : undefined);
+
+    if (!resolvedRoomNumber) {
+      setSchedulingError("Could not resolve room number for this slot. Please refresh and try again.");
+      return;
+    }
+
     const wasSuccessful = await handleManualScheduling(
       "DELETE",
       {
@@ -490,7 +570,7 @@ const ManualScheduler = () => {
         prevDay: toFullDayName(deletingSlotInfo.day),
         prevStartTime: deletingSlotInfo.startTime,
         prevEndTime: deletingSlotInfo.endTime,
-        prevRoomNumber: deletingSlotInfo.roomNumber,
+        prevRoomNumber: resolvedRoomNumber,
       },
       "Course slot removed successfully!",
     );

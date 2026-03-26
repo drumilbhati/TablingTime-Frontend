@@ -3,6 +3,7 @@ import { AlertCircle, Clock, Users, BookOpen, Trash2, AlertTriangle, Upload, Sea
 import { useCourses, type Course } from "../context/CoursesContext";
 import { useAuth } from "../context/AuthContext";
 import RoomSelector from "../components/RoomSelector";
+import { CourseDetailsModal } from "../components/CourseDetailsModal";
 import schedulingService from "../services/schedulingService";
 import type {
   ManualSchedulingAction,
@@ -103,7 +104,15 @@ const getDynamicSlotCodes = (day: string, startTime: string, endTime: string): s
   return codes;
 };
 
-const getRoomDisplayForSlot = (
+const formatRoomDisplay = (room: string | { roomNumber?: string; building?: string } | undefined): string => {
+  if (!room) return "";
+  if (typeof room === "string") return room;
+  const roomName = room.roomNumber || "";
+  if (room.building && roomName) return `${room.building} - ${roomName}`;
+  return roomName;
+};
+
+const getRoomNumberForSlot = (
   course: Course,
   day: string,
   startTime: string,
@@ -130,16 +139,8 @@ const getRoomDisplayForSlot = (
     return dayMatches && timeMatches;
   });
 
-  const formatResult = (r: { roomNumber?: string; building?: string } | string | undefined) => {
-    if (!r) return undefined;
-    if (typeof r === "string") return r;
-    const roomName = r.roomNumber;
-    if (r.building && roomName) return `${r.building} - ${roomName}`;
-    return roomName;
-  };
-
-  if (matchedAssignment) {
-    return formatResult(matchedAssignment);
+  if (matchedAssignment?.roomNumber) {
+    return String(matchedAssignment.roomNumber);
   }
 
   const dynamicSlots = getDynamicSlotCodes(day, startTime, endTime);
@@ -148,18 +149,18 @@ const getRoomDisplayForSlot = (
       dynamicSlots.includes(String(room.slot ?? "")),
     );
 
-    if (dynamicMatch) {
-      return formatResult(dynamicMatch);
+    if (dynamicMatch?.roomNumber) {
+      return String(dynamicMatch.roomNumber);
     }
   }
 
-  if (structuredAssignments.length === 1 && structuredAssignments[0]) {
-    return formatResult(structuredAssignments[0]);
+  if (structuredAssignments.length === 1 && structuredAssignments[0]?.roomNumber) {
+    return String(structuredAssignments[0].roomNumber);
   }
 
   const firstRoomWithNumber = structuredAssignments.find((room) => room.roomNumber);
-  if (firstRoomWithNumber) {
-    return formatResult(firstRoomWithNumber);
+  if (firstRoomWithNumber?.roomNumber) {
+    return String(firstRoomWithNumber.roomNumber);
   }
 
   const legacyStringRoom = course.room.find(
@@ -296,7 +297,14 @@ const ManualScheduler = () => {
   const [professorPreferenceMode, setProfessorPreferenceMode] =
     useState<ProfessorPreferenceMode>("strict");
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeCourseDetails, setActiveCourseDetails] = useState<{
+    course: Course;
+    day: string;
+    startTime: string;
+    endTime: string;
+  } | null>(null);
   const tableContainerRef = useRef<HTMLDivElement>(null);
+  const isDragging = useRef(false);
 
   const movePriority = (index: number, direction: "up" | "down") => {
     const targetIndex = direction === "up" ? index - 1 : index + 1;
@@ -570,7 +578,7 @@ const ManualScheduler = () => {
     const resolvedRoomNumber =
       deletingSlotInfo.roomNumber ||
       (sourceCourse
-        ? getRoomDisplayForSlot(
+        ? getRoomNumberForSlot(
             sourceCourse,
             deletingSlotInfo.day,
             deletingSlotInfo.startTime,
@@ -684,8 +692,14 @@ const ManualScheduler = () => {
     [slots],
   );
 
+  const handleCourseClick = (course: Course, day: string, startTime: string, endTime: string) => {
+    if (isDragging.current) return;
+    setActiveCourseDetails({ course, day, startTime, endTime });
+  };
+
   const handleDragStart = (course: Course) => {
     console.log("🎯 Dragging FROM UNSCHEDULED:", course.courseId);
+    isDragging.current = true;
     setDraggedCourse(course);
     setDraggedFromScheduled(false);
     setDragSource(null);
@@ -700,9 +714,10 @@ const ManualScheduler = () => {
     endTime: string,
   ) => {
     console.log("🎯 Dragging FROM SCHEDULED:", course.courseId, "from", { day, startTime, endTime });
+    isDragging.current = true;
     setDraggedCourse(course);
     setDraggedFromScheduled(true);
-    const roomNumber = getRoomDisplayForSlot(course, day, startTime, endTime);
+    const roomNumber = getRoomNumberForSlot(course, day, startTime, endTime);
     setDragSource({ day, startTime, endTime, roomNumber });
     setSchedulingError(null);
     setSchedulingSuccess(null);
@@ -1117,6 +1132,7 @@ const ManualScheduler = () => {
                       onDragStart={() => handleDragStart(course)}
                       onDrag={handleDrag}
                       onDragEnd={() => {
+                        isDragging.current = false;
                         setDraggedCourse(null);
                         setDraggedFromScheduled(false);
                       }}
@@ -1125,6 +1141,14 @@ const ManualScheduler = () => {
                           ? "opacity-50 scale-95"
                           : `${colors.bg} ${colors.border} hover:shadow-md`
                       }`}
+                      onClick={() => {
+                        const firstSlot = course.timeslots?.find(s => s.day && s.startTime) || {
+                          day: "Mon",
+                          startTime: "08:00",
+                          endTime: "09:30"
+                        };
+                        handleCourseClick(course, firstSlot.day, firstSlot.startTime, firstSlot.endTime);
+                      }}
                     >
                       <div className="font-semibold text-gray-900 text-sm">
                         {course.courseId}
@@ -1191,6 +1215,7 @@ const ManualScheduler = () => {
                       onDragStart={() => handleDragStart(course)}
                       onDrag={handleDrag}
                       onDragEnd={() => {
+                        isDragging.current = false;
                         setDraggedCourse(null);
                         setDraggedFromScheduled(false);
                       }}
@@ -1199,6 +1224,14 @@ const ManualScheduler = () => {
                           ? "opacity-50 scale-95"
                           : `${colors.bg} ${colors.border} hover:shadow-md`
                       }`}
+                      onClick={() => {
+                        const firstSlot = course.timeslots?.find(s => s.day && s.startTime) || {
+                          day: "Mon",
+                          startTime: "08:00",
+                          endTime: "09:30"
+                        };
+                        handleCourseClick(course, firstSlot.day, firstSlot.startTime, firstSlot.endTime);
+                      }}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="font-semibold text-gray-900 text-sm">
@@ -1296,10 +1329,12 @@ const ManualScheduler = () => {
                           }
                           onDrag={handleDrag}
                           onDragEnd={() => {
+                            isDragging.current = false;
                             setDraggedCourse(null);
                             setDraggedFromScheduled(false);
                           }}
                           className="cursor-move"
+                          onClick={() => handleCourseClick(course, firstSlot.day, firstSlot.startTime, firstSlot.endTime)}
                         >
                           <div className="font-semibold text-gray-900 text-sm">
                             {course.courseId}
@@ -1320,7 +1355,7 @@ const ManualScheduler = () => {
                             day: firstSlot.day,
                             startTime: firstSlot.startTime,
                             endTime: firstSlot.endTime,
-                            roomNumber: getRoomDisplayForSlot(
+                            roomNumber: getRoomNumberForSlot(
                               course,
                               firstSlot.day,
                               firstSlot.startTime,
@@ -1438,9 +1473,11 @@ const ManualScheduler = () => {
                                         )
                                       }
                                       onDragEnd={() => {
+                                        isDragging.current = false;
                                         setDraggedCourse(null);
                                         setDraggedFromScheduled(false);
                                       }}
+                                      onClick={() => handleCourseClick(course, day, startTime, endTime)}
                                     >
                                       <div className="flex items-center justify-between gap-1">
                                         <span>{course.courseId}</span>
@@ -1452,7 +1489,7 @@ const ManualScheduler = () => {
                                               day,
                                               startTime,
                                               endTime,
-                                              roomNumber: getRoomDisplayForSlot(
+                                              roomNumber: getRoomNumberForSlot(
                                                 course,
                                                 day,
                                                 startTime,
@@ -1569,6 +1606,18 @@ const ManualScheduler = () => {
             setShowPartialUploadDialog(false);
             refetch();
           }}
+        />
+      )}
+
+      {/* Course Detail Modal */}
+      {activeCourseDetails && (
+        <CourseDetailsModal
+          course={activeCourseDetails.course}
+          day={activeCourseDetails.day}
+          startTime={activeCourseDetails.startTime}
+          endTime={activeCourseDetails.endTime}
+          isSelected={false}
+          onClose={() => setActiveCourseDetails(null)}
         />
       )}
     </div>

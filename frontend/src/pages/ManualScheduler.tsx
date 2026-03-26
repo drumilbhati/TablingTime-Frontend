@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { AlertCircle, Clock, Users, BookOpen, Trash2, AlertTriangle, Upload, Search } from "lucide-react";
 import { useCourses, type Course } from "../context/CoursesContext";
 import { useAuth } from "../context/AuthContext";
+import { toast } from "sonner";
 import RoomSelector from "../components/RoomSelector";
 import { CourseDetailsModal } from "../components/CourseDetailsModal";
 import schedulingService from "../services/schedulingService";
@@ -104,13 +105,7 @@ const getDynamicSlotCodes = (day: string, startTime: string, endTime: string): s
   return codes;
 };
 
-const formatRoomDisplay = (room: string | { roomNumber?: string; building?: string } | undefined): string => {
-  if (!room) return "";
-  if (typeof room === "string") return room;
-  const roomName = room.roomNumber || "";
-  if (room.building && roomName) return `${room.building} - ${roomName}`;
-  return roomName;
-};
+// Removed formatRoomDisplay as it was unused
 
 const getRoomNumberForSlot = (
   course: Course,
@@ -306,6 +301,30 @@ const ManualScheduler = () => {
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const isDragging = useRef(false);
 
+  useEffect(() => {
+    if (schedulingError) {
+      toast.error(schedulingError, { dismissible: true });
+      setSchedulingError(null);
+    }
+  }, [schedulingError]);
+
+  useEffect(() => {
+    if (schedulingSuccess) {
+      toast.success(schedulingSuccess, { dismissible: true });
+      setSchedulingSuccess(null);
+    }
+  }, [schedulingSuccess]);
+
+  useEffect(() => {
+    if (status.type === "error") {
+      toast.error(status.message, { dismissible: true });
+      setStatus({ type: "idle" });
+    } else if (status.type === "success") {
+      toast.success(status.message, { dismissible: true });
+      setStatus({ type: "idle" });
+    }
+  }, [status]);
+
   const movePriority = (index: number, direction: "up" | "down") => {
     const targetIndex = direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= priorityOrder.length) return;
@@ -392,8 +411,8 @@ const ManualScheduler = () => {
       course.courseId.toLowerCase().includes(searchLower) ||
       (course["Course Name"] &&
         course["Course Name"].toLowerCase().includes(searchLower)) ||
-      (course.Professor &&
-        course.Professor.toLowerCase().includes(searchLower))
+      (course.Faculty &&
+        course.Faculty.toLowerCase().includes(searchLower))
     );
   });
 
@@ -1021,53 +1040,7 @@ const ManualScheduler = () => {
         </div>
       </div>
 
-      {/* Alerts */}
-      {schedulingError && (
-        <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
-          <AlertCircle
-            className="text-red-600 flex-shrink-0 mt-0.5"
-            size={20}
-          />
-          <div>
-            <p className="text-sm font-medium text-red-800">
-              {schedulingError}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {schedulingSuccess && (
-        <div className="mx-6 mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex gap-3">
-          <div className="text-green-600 flex-shrink-0 mt-0.5">✓</div>
-          <div>
-            <p className="text-sm font-medium text-green-800">
-              {schedulingSuccess}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {status.type === "success" && (
-        <div className="mx-6 mt-4 p-4 bg-green-50 border border-green-200 rounded-lg flex gap-3">
-          <div className="text-green-600 flex-shrink-0 mt-0.5">✓</div>
-          <div>
-            <p className="text-sm font-medium text-green-800">
-              {status.message}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {status.type === "error" && (
-        <div className="mx-6 mt-4 p-4 bg-red-50 border border-red-200 rounded-lg flex gap-3">
-          <AlertCircle className="text-red-600 flex-shrink-0 mt-0.5" size={20} />
-          <div>
-            <p className="text-sm font-medium text-red-800">
-              {status.message}
-            </p>
-          </div>
-        </div>
-      )}
+      {/* Alerts handled by Sonner Toaster */}
 
       {/* Main content */}
       <div className="flex flex-1">

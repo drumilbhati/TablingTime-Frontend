@@ -55,7 +55,6 @@ const RoomSelector = ({
   isLoading: actionLoading = false,
   error: actionError = null,
   isReplace = false,
-  sourceSlot = null,
 }: RoomSelectorProps) => {
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
   const [fetchLoading, setFetchLoading] = useState(false);

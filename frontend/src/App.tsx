@@ -13,6 +13,8 @@ import { AuthProvider } from "./context/AuthContext.tsx";
 import { CoursesProvider } from "./context/CoursesContext.tsx";
 import { useAuth } from "./context/AuthContext.tsx";
 
+import { Toaster } from 'sonner';
+
 // Redirects non-admin users away from admin-only routes.
 // Shows nothing while auth is still loading to avoid a flash redirect.
 const AdminRoute = ({ children }: { children: React.ReactNode }) => {
@@ -33,6 +35,7 @@ function App() {
       <AuthProvider>
         <CoursesProvider>
           <div className="min-h-screen">
+            <Toaster richColors position="top-right" closeButton />
             <Navbar />
             <Routes>
               <Route path="/" element={<Navigate to="/timetable" replace />} />

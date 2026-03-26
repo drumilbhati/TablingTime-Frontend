@@ -200,6 +200,7 @@ const ManualScheduler = () => {
   const [draggedFromScheduled, setDraggedFromScheduled] = useState(false);
   const [dragSource, setDragSource] = useState<DragSource | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
+  const [selectedDropDay, setSelectedDropDay] = useState<string | null>(null);
   const [showRoomSelector, setShowRoomSelector] = useState(false);
   const [roomSelectorCourse, setRoomSelectorCourse] = useState<Course | null>(
     null,
@@ -657,6 +658,7 @@ const ManualScheduler = () => {
     console.log("✅ Setting selectedSlot and showing modal");
     console.log("State before update:", { showRoomSelector, selectedSlot });
     setSelectedSlot(slot);
+    setSelectedDropDay(day);
     setRoomSelectorCourse(draggedCourse);
     setRoomSelectorIsReplace(draggedFromScheduled);
     setRoomSelectorSource(dragSource);
@@ -673,7 +675,7 @@ const ManualScheduler = () => {
     
     if (!roomSelectorCourse || !selectedSlot) return;
 
-    const destinationDayRaw = selectedSlot.days[0];
+    const destinationDayRaw = selectedDropDay ?? selectedSlot.days[0];
 
     if (!destinationDayRaw) {
       setSchedulingError("Invalid destination slot");
@@ -745,6 +747,7 @@ const ManualScheduler = () => {
     setDraggedFromScheduled(false);
     setDragSource(null);
     setSelectedSlot(null);
+    setSelectedDropDay(null);
     setRoomSelectorCourse(null);
     setRoomSelectorIsReplace(false);
     setRoomSelectorSource(null);

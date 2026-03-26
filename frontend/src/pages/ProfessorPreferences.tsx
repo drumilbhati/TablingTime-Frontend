@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useAuth } from "../context/AuthContext";
 import ErrorState from "../components/ErrorState";
-import { X, Search } from "lucide-react";
+import { X, Search, Upload } from "lucide-react";
 import { buildApiUrl } from "../lib/api";
+import ProfessorPreferenceUploadModal from "../components/ProfessorPreferenceUploadModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -526,6 +527,7 @@ const ProfessorPreferences = () => {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [preferenceTarget, setPreferenceTarget] = useState<User | null>(null);
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   // ── Fetch all users ───────────────────────────────────────────────────────
 
@@ -605,14 +607,23 @@ const ProfessorPreferences = () => {
           />
         </div>
 
-        {/* Count */}
-        <span className="text-sm text-gray-400 ml-auto">
-          {usersLoading ? (
-            <span className="inline-block w-24 h-4 bg-gray-100 rounded animate-pulse" />
-          ) : (
-            `${filteredUsers.length} faculty`
-          )}
-        </span>
+        {/* Count and Actions */}
+        <div className="flex items-center gap-3 ml-auto">
+          <span className="text-sm text-gray-400">
+            {usersLoading ? (
+              <span className="inline-block w-24 h-4 bg-gray-100 rounded animate-pulse" />
+            ) : (
+              `${filteredUsers.length} faculty`
+            )}
+          </span>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
+          >
+            <Upload size={16} />
+            Bulk Upload
+          </button>
+        </div>
       </div>
 
       {/* Table */}
@@ -698,6 +709,14 @@ const ProfessorPreferences = () => {
       {/* Preference modal */}
       {preferenceTarget && (
         <PreferenceModal user={preferenceTarget} onClose={() => setPreferenceTarget(null)} />
+      )}
+
+      {/* Upload modal */}
+      {showUploadModal && (
+        <ProfessorPreferenceUploadModal
+          onClose={() => setShowUploadModal(false)}
+          onSuccess={() => fetchUsers()}
+        />
       )}
     </div>
   );

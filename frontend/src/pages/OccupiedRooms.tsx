@@ -11,6 +11,7 @@ import { X } from "lucide-react";
 import {
   useCourses,
   type Course as CourseData,
+  getCourseCredit,
 } from "../context/CoursesContext";
 import ErrorState from "../components/ErrorState";
 
@@ -100,7 +101,7 @@ const OccupiedRooms = () => {
         return String(r);
       })
       .filter(Boolean);
-    return valid.join(", ");
+    return Array.from(new Set(valid)).join(", ");
   };
 
   return (
@@ -262,7 +263,7 @@ const OccupiedRooms = () => {
                             <span className="font-medium text-gray-900">
                               Credits:
                             </span>
-                            <p>{course.Credits}</p>
+                            <p>{getCourseCredit(course)}</p>
                           </div>
                           <div>
                             <span className="font-medium text-gray-900">

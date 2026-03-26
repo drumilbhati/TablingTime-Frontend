@@ -64,7 +64,7 @@ const formatRooms = (rooms: any[]) => {
       return String(r);
     })
     .filter(Boolean);
-  return valid.join(", ");
+  return Array.from(new Set(valid)).join(", ");
 };
 
 const Timetable = ({ selectedCourse }: TimetableProps) => {

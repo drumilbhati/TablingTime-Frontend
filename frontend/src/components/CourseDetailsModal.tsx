@@ -1,4 +1,4 @@
-import { type Course } from "../context/CoursesContext";
+import { type Course, getCourseCredit } from "../context/CoursesContext";
 
 const DAY_FULL: Record<string, string> = {
   Mon: "Monday",
@@ -55,7 +55,7 @@ const formatRooms = (rooms: any[]) => {
       return String(r);
     })
     .filter(Boolean);
-  return valid.join(", ");
+  return Array.from(new Set(valid)).join(", ");
 };
 
 export interface CourseDetailsModalProps {
@@ -134,16 +134,16 @@ export const CourseDetailsModal = ({
               <div className="text-xs text-gray-500 font-medium uppercase">
                 Faculty
               </div>
-              <div className="text-sm font-semibold text-gray-800 mt-1">
-                {course.Faculty}
+              <div className="text-sm font-semibold text-gray-800 mt-1 min-h-[1.25rem]">
+                {course.Faculty || "—"}
               </div>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="text-xs text-gray-500 font-medium uppercase">
                 Credits
               </div>
-              <div className="text-sm font-semibold text-gray-800 mt-1">
-                {course.Credits}
+              <div className="text-sm font-semibold text-gray-800 mt-1 min-h-[1.25rem]">
+                {getCourseCredit(course) || "—"}
               </div>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">

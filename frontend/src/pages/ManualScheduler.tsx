@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { AlertCircle, Clock, Users, BookOpen, Trash2, AlertTriangle, Upload, Search } from "lucide-react";
-import { useCourses, type Course } from "../context/CoursesContext";
+import { useCourses, type Course, getCourseCredit } from "../context/CoursesContext";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import RoomSelector from "../components/RoomSelector";
@@ -168,20 +168,14 @@ const getRoomNumberForSlot = (
   return undefined;
 };
 
-const getNumericCredit = (value: string | number | undefined): number => {
-  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }
-  return 0;
-};
-
 const getExpectedComponentCount = (course: Course): number => {
-  const theoryCredits = getNumericCredit(course.theoryCredits);
-  const labCredits = getNumericCredit(course.labCredits);
-  const componentCount =
-    (theoryCredits > 0 ? 1 : 0) + (labCredits > 0 ? 1 : 0);
+  const rawTheory = course.theoryCredits;
+  const rawLab = course.labCredits;
+  const rawBase = course.Credits || course.credits;
+
+  const theoryCredits = Number(rawTheory) || Number(rawBase) || 0;
+  const labCredits = Number(rawLab) || 0;
+  const componentCount = (theoryCredits > 0 ? 1 : 0) + (labCredits > 0 ? 1 : 0);
 
   return componentCount > 0 ? componentCount : 1;
 };
@@ -1136,7 +1130,7 @@ const ManualScheduler = () => {
                         </div>
                         <div className="flex items-center gap-1 text-gray-600">
                           <Clock size={12} />
-                          {course.Credits}cr
+                          {getCourseCredit(course)}{typeof getCourseCredit(course) === "number" ? "cr" : ""}
                         </div>
                       </div>
                     </div>
@@ -1228,7 +1222,7 @@ const ManualScheduler = () => {
                         </div>
                         <div className="flex items-center gap-1 text-gray-600">
                           <Clock size={12} />
-                          {course.Credits}cr
+                          {getCourseCredit(course)}{typeof getCourseCredit(course) === "number" ? "cr" : ""}
                         </div>
                       </div>
                     </div>
@@ -1318,6 +1312,16 @@ const ManualScheduler = () => {
                           <div className="text-xs text-gray-600 mt-1">
                             {firstSlot.day} {firstSlot.startTime}–
                             {firstSlot.endTime}
+                          </div>
+                          <div className="flex gap-2 mt-2 text-xs">
+                            <div className="flex items-center gap-1 text-gray-600">
+                              <Users size={12} />
+                              {course.studentId?.length || 0}
+                            </div>
+                            <div className="flex items-center gap-1 text-gray-600">
+                              <Clock size={12} />
+                              {getCourseCredit(course)}{typeof getCourseCredit(course) === "number" ? "cr" : ""}
+                            </div>
                           </div>
                         </div>
                       )}

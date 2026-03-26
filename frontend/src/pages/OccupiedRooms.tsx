@@ -85,8 +85,26 @@ const OccupiedRooms = () => {
   const timeslots = getUniqueTimeslots();
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+  const formatRooms = (rooms: any[]) => {
+    if (!rooms || rooms.length === 0) return "";
+    const valid = rooms
+      .map((r) => {
+        if (typeof r === "string") return r === "[object Object]" ? "" : r;
+        if (r && typeof r === "object") {
+          const roomName = r.roomNumber || r.name || r._id || "";
+          if (r.building && roomName) {
+            return `${r.building} - ${roomName}`;
+          }
+          return roomName;
+        }
+        return String(r);
+      })
+      .filter(Boolean);
+    return valid.join(", ");
+  };
+
   return (
-    <div className="w-full flex flex-col h-[calc(100svh-73px)] bg-white">
+    <div className="w-full flex flex-col min-h-[calc(100svh-73px)] bg-white">
       {loading && <div className="p-4 text-gray-500">Loading courses...</div>}
 
       {!loading && (
@@ -100,7 +118,7 @@ const OccupiedRooms = () => {
           </div>
 
           {/* Timetable Grid */}
-          <div className="flex-1 overflow-auto p-6">
+          <div className="flex-1 p-6">
             {timeslots.length === 0 ? (
               <div className="text-center py-8 text-gray-500">
                 No courses scheduled
@@ -229,7 +247,7 @@ const OccupiedRooms = () => {
                           </div>
                           {course.room.length > 0 && (
                             <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium whitespace-nowrap ml-4">
-                              Room: {course.room.join(", ")}
+                              Room: {formatRooms(course.room)}
                             </div>
                           )}
                         </div>

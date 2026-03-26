@@ -41,6 +41,7 @@ export interface Room {
   _id: string;
   roomNumber: string;
   capacity: number;
+  building?: string;
   schedule: Array<{
     timeSlot: string;
     courseId: string;
@@ -265,6 +266,24 @@ class SchedulingService {
 
     if (!response.ok) {
       throw new Error(`Failed to fetch slots: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async getAvailableRooms(timings: string): Promise<Room[]> {
+    const token = localStorage.getItem("token");
+    const response = await fetch(
+      buildApiUrl(`/api/available-rooms?timings=${encodeURIComponent(timings)}`),
+      {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to fetch available rooms: ${response.status}`);
     }
 
     return response.json();

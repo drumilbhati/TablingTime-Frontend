@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { AlertCircle, Clock, Users, BookOpen, Trash2, AlertTriangle, Upload } from "lucide-react";
+import { AlertCircle, Clock, Users, BookOpen, Trash2, AlertTriangle, Upload, Search } from "lucide-react";
 import { useCourses, type Course } from "../context/CoursesContext";
 import { useAuth } from "../context/AuthContext";
 import RoomSelector from "../components/RoomSelector";
@@ -103,7 +103,7 @@ const getDynamicSlotCodes = (day: string, startTime: string, endTime: string): s
   return codes;
 };
 
-const getRoomNumberForSlot = (
+const getRoomDisplayForSlot = (
   course: Course,
   day: string,
   startTime: string,
@@ -115,7 +115,7 @@ const getRoomNumberForSlot = (
   const targetDayFull = normalizeDayToken(toFullDayName(day));
 
   const structuredAssignments = course.room.filter(
-    (room): room is { roomNumber?: string; slot?: string } =>
+    (room): room is { roomNumber?: string; building?: string; slot?: string } =>
       typeof room === "object" && room !== null,
   );
 
@@ -130,8 +130,16 @@ const getRoomNumberForSlot = (
     return dayMatches && timeMatches;
   });
 
-  if (matchedAssignment?.roomNumber) {
-    return String(matchedAssignment.roomNumber);
+  const formatResult = (r: { roomNumber?: string; building?: string } | string | undefined) => {
+    if (!r) return undefined;
+    if (typeof r === "string") return r;
+    const roomName = r.roomNumber;
+    if (r.building && roomName) return `${r.building} - ${roomName}`;
+    return roomName;
+  };
+
+  if (matchedAssignment) {
+    return formatResult(matchedAssignment);
   }
 
   const dynamicSlots = getDynamicSlotCodes(day, startTime, endTime);
@@ -140,18 +148,18 @@ const getRoomNumberForSlot = (
       dynamicSlots.includes(String(room.slot ?? "")),
     );
 
-    if (dynamicMatch?.roomNumber) {
-      return String(dynamicMatch.roomNumber);
+    if (dynamicMatch) {
+      return formatResult(dynamicMatch);
     }
   }
 
-  if (structuredAssignments.length === 1 && structuredAssignments[0]?.roomNumber) {
-    return String(structuredAssignments[0].roomNumber);
+  if (structuredAssignments.length === 1 && structuredAssignments[0]) {
+    return formatResult(structuredAssignments[0]);
   }
 
   const firstRoomWithNumber = structuredAssignments.find((room) => room.roomNumber);
-  if (firstRoomWithNumber?.roomNumber) {
-    return String(firstRoomWithNumber.roomNumber);
+  if (firstRoomWithNumber) {
+    return formatResult(firstRoomWithNumber);
   }
 
   const legacyStringRoom = course.room.find(
@@ -287,6 +295,7 @@ const ManualScheduler = () => {
   ]);
   const [professorPreferenceMode, setProfessorPreferenceMode] =
     useState<ProfessorPreferenceMode>("strict");
+  const [searchTerm, setSearchTerm] = useState("");
   const tableContainerRef = useRef<HTMLDivElement>(null);
 
   const movePriority = (index: number, direction: "up" | "down") => {
@@ -369,15 +378,26 @@ const ManualScheduler = () => {
     }
   };
 
-  const unscheduledCourses = displayCourses.filter(
+  const filteredCourses = displayCourses.filter((course) => {
+    const searchLower = searchTerm.toLowerCase();
+    return (
+      course.courseId.toLowerCase().includes(searchLower) ||
+      (course["Course Name"] &&
+        course["Course Name"].toLowerCase().includes(searchLower)) ||
+      (course.Professor &&
+        course.Professor.toLowerCase().includes(searchLower))
+    );
+  });
+
+  const unscheduledCourses = filteredCourses.filter(
     (course) => getCourseScheduleState(course) === "unscheduled",
   );
 
-  const partiallyScheduledCourses = displayCourses.filter(
+  const partiallyScheduledCourses = filteredCourses.filter(
     (course) => getCourseScheduleState(course) === "partial",
   );
 
-  const scheduledCourses = displayCourses.filter(
+  const scheduledCourses = filteredCourses.filter(
     (course) => getCourseScheduleState(course) === "scheduled",
   );
 
@@ -550,7 +570,7 @@ const ManualScheduler = () => {
     const resolvedRoomNumber =
       deletingSlotInfo.roomNumber ||
       (sourceCourse
-        ? getRoomNumberForSlot(
+        ? getRoomDisplayForSlot(
             sourceCourse,
             deletingSlotInfo.day,
             deletingSlotInfo.startTime,
@@ -682,7 +702,7 @@ const ManualScheduler = () => {
     console.log("🎯 Dragging FROM SCHEDULED:", course.courseId, "from", { day, startTime, endTime });
     setDraggedCourse(course);
     setDraggedFromScheduled(true);
-    const roomNumber = getRoomNumberForSlot(course, day, startTime, endTime);
+    const roomNumber = getRoomDisplayForSlot(course, day, startTime, endTime);
     setDragSource({ day, startTime, endTime, roomNumber });
     setSchedulingError(null);
     setSchedulingSuccess(null);
@@ -794,7 +814,7 @@ const ManualScheduler = () => {
           prevEndTime: roomSelectorSource.endTime,
           prevRoomNumber: roomSelectorSource.roomNumber,
         },
-        `${roomSelectorCourse.courseId} moved successfully to Room ${roomNumber}!`,
+        `${roomSelectorCourse.courseId} moved successfully to ${roomNumber}!`,
       );
 
       if (!wasSuccessful) {
@@ -814,7 +834,7 @@ const ManualScheduler = () => {
       const wasSuccessful = await handleManualScheduling(
         "ADD",
         addPayload,
-        `${roomSelectorCourse.courseId} scheduled successfully in Room ${roomNumber}!`,
+        `${roomSelectorCourse.courseId} scheduled successfully in ${roomNumber}!`,
       );
 
       if (!wasSuccessful) {
@@ -864,7 +884,7 @@ const ManualScheduler = () => {
   const timeslots = getUniqueTimeslots();
 
   return (
-    <div className="flex flex-col h-[calc(100svh-73px)] bg-white">
+    <div className="flex flex-col min-h-[calc(100svh-73px)] bg-white">
       {/* Header */}
       <div className="border-b border-gray-200 px-6 py-4 flex justify-between items-center">
         <div>
@@ -1035,12 +1055,29 @@ const ManualScheduler = () => {
       )}
 
       {/* Main content */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1">
         {/* Sidebar - Courses (Unscheduled and Scheduled) */}
-        <div className="w-80 border-r border-gray-200 flex flex-col flex-shrink-0 overflow-y-auto bg-white">
+        <div className="w-80 border-r border-gray-200 flex flex-col flex-shrink-0 bg-white">
+          {/* Search Bar */}
+          <div className="p-4 border-b border-gray-200 sticky top-0 z-20 bg-white">
+            <div className="relative">
+              <Search
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                size={16}
+              />
+              <input
+                type="text"
+                placeholder="Search course ID, name..."
+                className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+          </div>
+
           {/* Unscheduled Courses Section */}
           <div className="border-b border-gray-200 flex flex-col flex-shrink-0">
-            <div className="p-4 border-b border-gray-200 bg-gray-50 sticky top-0 z-10">
+            <div className="p-4 border-b border-gray-200 bg-gray-50">
               <h2 className="font-semibold text-gray-900">Unscheduled Courses</h2>
               <p className="text-xs text-gray-600 mt-0.5">
                 {unscheduledCourses.length} course
@@ -1197,7 +1234,7 @@ const ManualScheduler = () => {
 
           {/* Scheduled Courses Section */}
           <div className="flex flex-col flex-shrink-0">
-            <div className="p-4 border-b border-gray-200 bg-blue-50 sticky top-0 z-10">
+            <div className="p-4 border-b border-gray-200 bg-blue-50">
               <h2 className="font-semibold text-gray-900">Scheduled Courses</h2>
               <p className="text-xs text-gray-600 mt-0.5">
                 {scheduledCourses.length} course
@@ -1283,7 +1320,7 @@ const ManualScheduler = () => {
                             day: firstSlot.day,
                             startTime: firstSlot.startTime,
                             endTime: firstSlot.endTime,
-                            roomNumber: getRoomNumberForSlot(
+                            roomNumber: getRoomDisplayForSlot(
                               course,
                               firstSlot.day,
                               firstSlot.startTime,
@@ -1306,7 +1343,7 @@ const ManualScheduler = () => {
         </div>
 
         {/* Main timetable area */}
-        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex-1 p-4 min-w-0">
           {slotsLoading ? (
             <div className="space-y-3">
               {Array.from({ length: 5 }).map((_, i) => (
@@ -1415,7 +1452,7 @@ const ManualScheduler = () => {
                                               day,
                                               startTime,
                                               endTime,
-                                              roomNumber: getRoomNumberForSlot(
+                                              roomNumber: getRoomDisplayForSlot(
                                                 course,
                                                 day,
                                                 startTime,

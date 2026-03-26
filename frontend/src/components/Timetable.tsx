@@ -53,7 +53,13 @@ const formatRooms = (rooms: any[]) => {
   const valid = rooms
     .map((r) => {
       if (typeof r === "string") return r === "[object Object]" ? "" : r;
-      if (r && typeof r === "object") return r.roomNumber || r.name || r._id || "";
+      if (r && typeof r === "object") {
+        const roomName = r.roomNumber || r.name || r._id || "";
+        if (r.building && roomName) {
+          return `${r.building} - ${roomName}`;
+        }
+        return roomName;
+      }
       return String(r);
     })
     .filter(Boolean);

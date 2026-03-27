@@ -106,7 +106,7 @@ export default function PartialTimetableUploadModal({ onClose, onSuccess }: Part
         <div className="p-5 space-y-4">
           <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Schedule File Columns</p>
-            <p className="mt-1 text-sm text-gray-700">courseId, credits, faculty, room, day, startTime, endTime</p>
+            <p className="mt-1 text-sm text-gray-700">courseId, credits, faculty, roomNumber, building, day, startTime, endTime</p>
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-3 mb-1">Student File Columns</p>
             <p className="mt-1 text-sm text-gray-700">courseId, studentIds (semicolon separated)</p>
           </div>

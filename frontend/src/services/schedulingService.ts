@@ -66,7 +66,52 @@ export interface AutoScheduleOptions {
   professorPreferenceMode: ProfessorPreferenceMode;
 }
 
+export interface SchedulingViolationDetail {
+  rule: string;
+  message: string;
+  expected?: unknown;
+  actual?: unknown;
+  threshold?: unknown;
+  range?: unknown;
+  actualStartTime?: string;
+  offendingDays?: string[];
+}
+
+export interface SchedulingViolation {
+  courseId: string;
+  professorId: string;
+  professorConstraints: string[];
+  day: string;
+  startTime: string;
+  endTime: string;
+  details: SchedulingViolationDetail[];
+}
+
+export interface SchedulingRunReport {
+  reportKey: string;
+  generatedAt: string;
+  schedulerOptions: {
+    source?: string;
+    [key: string]: unknown;
+  };
+  summary: {
+    totalCoursesReviewed: number;
+    coursesWithViolations: number;
+    professorsWithViolations: number;
+    totalViolations: number;
+  };
+  violations: SchedulingViolation[];
+}
+
+export interface LatestSchedulingReportResponse {
+  hasReport: boolean;
+  report: SchedulingRunReport | null;
+}
+
 class SchedulingService {
+  private latestSchedulingReportPromise: Promise<LatestSchedulingReportResponse> | null =
+    null;
+
   async runAutoScheduler(
     options: AutoScheduleOptions,
   ): Promise<{ success: boolean; message?: string }> {
@@ -287,6 +332,50 @@ class SchedulingService {
     }
 
     return response.json();
+  }
+
+  async getLatestSchedulingReport(): Promise<LatestSchedulingReportResponse> {
+    if (this.latestSchedulingReportPromise) {
+      return this.latestSchedulingReportPromise;
+    }
+
+    const token = localStorage.getItem("token");
+    this.latestSchedulingReportPromise = fetch(
+      buildApiUrl("/api/scheduling/report/latest"),
+      {
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      },
+    )
+      .then(async (response) => {
+        if (response.status === 404) {
+          return {
+            hasReport: false,
+            report: null,
+          };
+        }
+
+        if (!response.ok) {
+          let message = `Failed to fetch scheduling report: ${response.status}`;
+
+          try {
+            const data = await response.json();
+            message = data?.message || data?.error || message;
+          } catch {
+            // Ignore parse errors and use the fallback message.
+          }
+
+          throw new Error(message);
+        }
+
+        return response.json();
+      })
+      .finally(() => {
+        this.latestSchedulingReportPromise = null;
+      });
+
+    return this.latestSchedulingReportPromise;
   }
 }
 

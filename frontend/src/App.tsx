@@ -11,6 +11,7 @@ import ManualScheduler from "./pages/ManualScheduler.tsx";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "./context/AuthContext.tsx";
 import { CoursesProvider } from "./context/CoursesContext.tsx";
+import { SchedulingReportProvider } from "./context/SchedulingReportContext.tsx";
 import { useAuth } from "./context/AuthContext.tsx";
 
 import { Toaster } from 'sonner';
@@ -33,50 +34,52 @@ function App() {
   return (
     <GoogleOAuthProvider clientId="169828270266-4rvkkr0t2p9l1l8g74akau8k5e4peprn.apps.googleusercontent.com">
       <AuthProvider>
-        <CoursesProvider>
-          <div className="min-h-screen">
-            <Toaster richColors position="top-right" closeButton />
-            <Navbar />
-            <Routes>
-              <Route path="/" element={<Navigate to="/timetable" replace />} />
-              <Route path="/timetable" element={<TimetablePage />} />
+        <SchedulingReportProvider>
+          <CoursesProvider>
+            <div className="min-h-screen">
+              <Toaster richColors position="top-right" closeButton />
+              <Navbar />
+              <Routes>
+                <Route path="/" element={<Navigate to="/timetable" replace />} />
+                <Route path="/timetable" element={<TimetablePage />} />
 
-              <Route
-                path="/occupied"
-                element={
-                  <AdminRoute>
-                    <OccupiedRooms />
-                  </AdminRoute>
-                }
-              />
-              <Route
-                path="/enrolment"
-                element={
-                  <AdminRoute>
-                    <EnrolmentPage />
-                  </AdminRoute>
-                }
-              />
-              <Route
-                path="/professor-preferences"
-                element={
-                  <AdminRoute>
-                    <ProfessorPreferences />
-                  </AdminRoute>
-                }
-              />
-              <Route
-                path="/scheduler"
-                element={
-                  <AdminRoute>
-                    <ManualScheduler />
-                  </AdminRoute>
-                }
-              />
-              <Route path="/login" element={<Login />} />
-            </Routes>
-          </div>
-        </CoursesProvider>
+                <Route
+                  path="/occupied"
+                  element={
+                    <AdminRoute>
+                      <OccupiedRooms />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/enrolment"
+                  element={
+                    <AdminRoute>
+                      <EnrolmentPage />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/professor-preferences"
+                  element={
+                    <AdminRoute>
+                      <ProfessorPreferences />
+                    </AdminRoute>
+                  }
+                />
+                <Route
+                  path="/scheduler"
+                  element={
+                    <AdminRoute>
+                      <ManualScheduler />
+                    </AdminRoute>
+                  }
+                />
+                <Route path="/login" element={<Login />} />
+              </Routes>
+            </div>
+          </CoursesProvider>
+        </SchedulingReportProvider>
       </AuthProvider>
     </GoogleOAuthProvider>
   );

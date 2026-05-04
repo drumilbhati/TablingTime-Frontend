@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { AlertCircle, Clock, Users, BookOpen, Trash2, AlertTriangle, Upload, Search } from "lucide-react";
+import { AlertCircle, Clock, Users, BookOpen, Trash2, AlertTriangle, Upload, Search, ChevronDown, ChevronRight } from "lucide-react";
 import { useCourses, type Course, getCourseCredit } from "../context/CoursesContext";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import RoomSelector from "../components/RoomSelector";
 import { CourseDetailsModal } from "../components/CourseDetailsModal";
+import SchedulingReportBanner from "../components/SchedulingReportBanner";
 import schedulingService from "../services/schedulingService";
 import type {
   ManualSchedulingAction,
@@ -14,6 +15,7 @@ import type { CourseCategory, ProfessorPreferenceMode } from "../services/schedu
 import type { Slot } from "../services/schedulingService";
 import ErrorState from "../components/ErrorState";
 import PartialTimetableUploadModal from "../components/PartialTimetableUploadModal";
+import { useSchedulingReport } from "../context/SchedulingReportContext";
 
 type SchedulerStatus =
   | { type: "idle" }
@@ -248,6 +250,10 @@ const ManualScheduler = () => {
     refetch,
   } = useCourses();
   const { userRole } = useAuth();
+  const {
+    latestReport,
+    refreshLatestReport,
+  } = useSchedulingReport();
   const [displayCourses, setDisplayCourses] = useState<Course[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
@@ -278,6 +284,11 @@ const ManualScheduler = () => {
   } | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showPartialUploadDialog, setShowPartialUploadDialog] = useState(false);
+  const [collapsedSections, setCollapsedSections] = useState({
+    unscheduled: false,
+    partial: false,
+    scheduled: false,
+  });
   const [priorityOrder, setPriorityOrder] = useState<CourseCategory[]>([
     "GER",
     "CORE",
@@ -354,6 +365,16 @@ const ManualScheduler = () => {
     }
   }, []);
 
+  const toggleSection = useCallback(
+    (section: "unscheduled" | "partial" | "scheduled") => {
+      setCollapsedSections((current) => ({
+        ...current,
+        [section]: !current[section],
+      }));
+    },
+    [],
+  );
+
   useEffect(() => {
     setDisplayCourses(courses);
   }, [courses]);
@@ -376,7 +397,7 @@ const ManualScheduler = () => {
     fetchData();
   }, []);
 
-  const handleAutoSchedule = async () => {
+  const handleAutoSchedule = useCallback(async () => {
     setStatus({ type: "loading" });
 
     try {
@@ -386,6 +407,7 @@ const ManualScheduler = () => {
       });
 
       await refetch();
+      await refreshLatestReport();
       setStatus({
         type: "success",
         message: "Scheduling completed successfully with selected priority settings.",
@@ -397,7 +419,7 @@ const ManualScheduler = () => {
           err instanceof Error ? err.message : "Unexpected error occurred.",
       });
     }
-  };
+  }, [priorityOrder, professorPreferenceMode, refetch, refreshLatestReport]);
 
   const filteredCourses = displayCourses.filter((course) => {
     const searchLower = searchTerm.toLowerCase();
@@ -568,6 +590,7 @@ const ManualScheduler = () => {
 
         setSchedulingSuccess(successMessage);
         await refetch();
+        await refreshLatestReport();
         return true;
       } catch (err) {
         setDisplayCourses(previousCourses);
@@ -581,7 +604,7 @@ const ManualScheduler = () => {
         setIsScheduling(false);
       }
     },
-    [applyOptimisticCourseUpdate, displayCourses, refetch],
+    [applyOptimisticCourseUpdate, displayCourses, refetch, refreshLatestReport],
   );
 
   const handleDeleteCourseConfirm = async () => {
@@ -1034,6 +1057,11 @@ const ManualScheduler = () => {
         </div>
       </div>
 
+      <SchedulingReportBanner
+        report={latestReport}
+        onRefresh={refreshLatestReport}
+      />
+
       {/* Alerts handled by Sonner Toaster */}
 
       {/* Main content */}
@@ -1059,298 +1087,356 @@ const ManualScheduler = () => {
 
           {/* Unscheduled Courses Section */}
           <div className="border-b border-gray-200 flex flex-col flex-shrink-0">
-            <div className="p-4 border-b border-gray-200 bg-gray-50">
-              <h2 className="font-semibold text-gray-900">Unscheduled Courses</h2>
-              <p className="text-xs text-gray-600 mt-0.5">
-                {unscheduledCourses.length} course
-                {unscheduledCourses.length !== 1 ? "s" : ""}
-              </p>
+            <div className="p-4 border-b border-gray-200 bg-gray-50 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-gray-900">Unscheduled Courses</h2>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  {unscheduledCourses.length} course
+                  {unscheduledCourses.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleSection("unscheduled")}
+                className="rounded-md border border-gray-200 bg-white p-1.5 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+                aria-label={
+                  collapsedSections.unscheduled
+                    ? "Expand unscheduled courses"
+                    : "Collapse unscheduled courses"
+                }
+              >
+                {collapsedSections.unscheduled ? (
+                  <ChevronRight size={16} />
+                ) : (
+                  <ChevronDown size={16} />
+                )}
+              </button>
             </div>
 
-            {coursesLoading ? (
-              <div className="p-4 space-y-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-20 bg-gray-100 rounded animate-pulse"
-                  />
-                ))}
-              </div>
-            ) : unscheduledCourses.length === 0 ? (
-              <div className="flex items-center justify-center p-4 h-32">
-                <div className="text-center text-gray-400">
-                  <BookOpen className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                  <div className="text-xs font-medium">No unscheduled</div>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3">
-                {unscheduledCourses.map((course) => {
-                  const colors =
-                    COURSE_TYPE_COLORS[course.courseType] ?? DEFAULT_COLORS;
-                  const isBeingDragged =
-                    draggedCourse?.courseId === course.courseId &&
-                    !draggedFromScheduled;
-
-                  return (
+            {!collapsedSections.unscheduled ? (
+              coursesLoading ? (
+                <div className="p-4 space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
                     <div
-                      key={course._id}
-                      draggable
-                      onDragStart={() => handleDragStart(course)}
-                      onDrag={handleDrag}
-                      onDragEnd={() => {
-                        isDragging.current = false;
-                        setDraggedCourse(null);
-                        setDraggedFromScheduled(false);
-                      }}
-                      className={`p-3 rounded-lg border-2 cursor-move mb-2 transition-all ${
-                        isBeingDragged
-                          ? "opacity-50 scale-95"
-                          : `${colors.bg} ${colors.border} hover:shadow-md`
-                      }`}
-                      onClick={() => {
-                        const firstSlot = course.timeslots?.find(s => s.day && s.startTime) || {
-                          day: "Mon",
-                          startTime: "08:00",
-                          endTime: "09:30"
-                        };
-                        handleCourseClick(course, firstSlot.day, firstSlot.startTime, firstSlot.endTime);
-                      }}
-                    >
-                      <div className="font-semibold text-gray-900 text-sm">
-                        {course.courseId}
-                      </div>
-                      <div className="text-xs text-gray-600 mt-1 truncate">
-                        {course["Course Name"]}
-                      </div>
-                      <div className="flex gap-2 mt-2 text-xs">
-                        <div className="flex items-center gap-1 text-gray-600">
-                          <Users size={12} />
-                          {course.studentId.length}
+                      key={i}
+                      className="h-20 bg-gray-100 rounded animate-pulse"
+                    />
+                  ))}
+                </div>
+              ) : unscheduledCourses.length === 0 ? (
+                <div className="flex items-center justify-center p-4 h-32">
+                  <div className="text-center text-gray-400">
+                    <BookOpen className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                    <div className="text-xs font-medium">No unscheduled</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3">
+                  {unscheduledCourses.map((course) => {
+                    const colors =
+                      COURSE_TYPE_COLORS[course.courseType] ?? DEFAULT_COLORS;
+                    const isBeingDragged =
+                      draggedCourse?.courseId === course.courseId &&
+                      !draggedFromScheduled;
+
+                    return (
+                      <div
+                        key={course._id}
+                        draggable
+                        onDragStart={() => handleDragStart(course)}
+                        onDrag={handleDrag}
+                        onDragEnd={() => {
+                          isDragging.current = false;
+                          setDraggedCourse(null);
+                          setDraggedFromScheduled(false);
+                        }}
+                        className={`p-3 rounded-lg border-2 cursor-move mb-2 transition-all ${
+                          isBeingDragged
+                            ? "opacity-50 scale-95"
+                            : `${colors.bg} ${colors.border} hover:shadow-md`
+                        }`}
+                        onClick={() => {
+                          const firstSlot = course.timeslots?.find(s => s.day && s.startTime) || {
+                            day: "Mon",
+                            startTime: "08:00",
+                            endTime: "09:30"
+                          };
+                          handleCourseClick(course, firstSlot.day, firstSlot.startTime, firstSlot.endTime);
+                        }}
+                      >
+                        <div className="font-semibold text-gray-900 text-sm">
+                          {course.courseId}
                         </div>
-                        <div className="flex items-center gap-1 text-gray-600">
-                          <Clock size={12} />
-                          {getCourseCredit(course)}{typeof getCourseCredit(course) === "number" ? "cr" : ""}
+                        <div className="text-xs text-gray-600 mt-1 truncate">
+                          {course["Course Name"]}
+                        </div>
+                        <div className="flex gap-2 mt-2 text-xs">
+                          <div className="flex items-center gap-1 text-gray-600">
+                            <Users size={12} />
+                            {course.studentId.length}
+                          </div>
+                          <div className="flex items-center gap-1 text-gray-600">
+                            <Clock size={12} />
+                            {getCourseCredit(course)}{typeof getCourseCredit(course) === "number" ? "cr" : ""}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )
+            ) : null}
           </div>
 
           {/* Partially Scheduled Courses Section */}
           <div className="border-b border-gray-200 flex flex-col flex-shrink-0">
-            <div className="p-4 border-b border-gray-200 bg-amber-50 sticky top-0 z-10">
-              <h2 className="font-semibold text-gray-900">Partially Scheduled</h2>
-              <p className="text-xs text-gray-600 mt-0.5">
-                {partiallyScheduledCourses.length} course
-                {partiallyScheduledCourses.length !== 1 ? "s" : ""}
-              </p>
+            <div className="p-4 border-b border-gray-200 bg-amber-50 sticky top-0 z-10 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-gray-900">Partially Scheduled</h2>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  {partiallyScheduledCourses.length} course
+                  {partiallyScheduledCourses.length !== 1 ? "s" : ""}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleSection("partial")}
+                className="rounded-md border border-gray-200 bg-white p-1.5 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+                aria-label={
+                  collapsedSections.partial
+                    ? "Expand partially scheduled courses"
+                    : "Collapse partially scheduled courses"
+                }
+              >
+                {collapsedSections.partial ? (
+                  <ChevronRight size={16} />
+                ) : (
+                  <ChevronDown size={16} />
+                )}
+              </button>
             </div>
 
-            {coursesLoading ? (
-              <div className="p-4 space-y-2">
-                {Array.from({ length: 2 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-20 bg-gray-100 rounded animate-pulse"
-                  />
-                ))}
-              </div>
-            ) : partiallyScheduledCourses.length === 0 ? (
-              <div className="flex items-center justify-center p-4 h-28">
-                <div className="text-center text-gray-400">
-                  <AlertTriangle className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                  <div className="text-xs font-medium">No partial courses</div>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3">
-                {partiallyScheduledCourses.map((course) => {
-                  const colors =
-                    COURSE_TYPE_COLORS[course.courseType] ?? DEFAULT_COLORS;
-                  const isBeingDragged =
-                    draggedCourse?.courseId === course.courseId &&
-                    !draggedFromScheduled;
-
-                  return (
+            {!collapsedSections.partial ? (
+              coursesLoading ? (
+                <div className="p-4 space-y-2">
+                  {Array.from({ length: 2 }).map((_, i) => (
                     <div
-                      key={course._id}
-                      draggable
-                      onDragStart={() => handleDragStart(course)}
-                      onDrag={handleDrag}
-                      onDragEnd={() => {
-                        isDragging.current = false;
-                        setDraggedCourse(null);
-                        setDraggedFromScheduled(false);
-                      }}
-                      className={`p-3 rounded-lg border-2 cursor-move mb-2 transition-all ${
-                        isBeingDragged
-                          ? "opacity-50 scale-95"
-                          : `${colors.bg} ${colors.border} hover:shadow-md`
-                      }`}
-                      onClick={() => {
-                        const firstSlot = course.timeslots?.find(s => s.day && s.startTime) || {
-                          day: "Mon",
-                          startTime: "08:00",
-                          endTime: "09:30"
-                        };
-                        handleCourseClick(course, firstSlot.day, firstSlot.startTime, firstSlot.endTime);
-                      }}
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="font-semibold text-gray-900 text-sm">
-                          {course.courseId}
+                      key={i}
+                      className="h-20 bg-gray-100 rounded animate-pulse"
+                    />
+                  ))}
+                </div>
+              ) : partiallyScheduledCourses.length === 0 ? (
+                <div className="flex items-center justify-center p-4 h-28">
+                  <div className="text-center text-gray-400">
+                    <AlertTriangle className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                    <div className="text-xs font-medium">No partial courses</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3">
+                  {partiallyScheduledCourses.map((course) => {
+                    const colors =
+                      COURSE_TYPE_COLORS[course.courseType] ?? DEFAULT_COLORS;
+                    const isBeingDragged =
+                      draggedCourse?.courseId === course.courseId &&
+                      !draggedFromScheduled;
+
+                    return (
+                      <div
+                        key={course._id}
+                        draggable
+                        onDragStart={() => handleDragStart(course)}
+                        onDrag={handleDrag}
+                        onDragEnd={() => {
+                          isDragging.current = false;
+                          setDraggedCourse(null);
+                          setDraggedFromScheduled(false);
+                        }}
+                        className={`p-3 rounded-lg border-2 cursor-move mb-2 transition-all ${
+                          isBeingDragged
+                            ? "opacity-50 scale-95"
+                            : `${colors.bg} ${colors.border} hover:shadow-md`
+                        }`}
+                        onClick={() => {
+                          const firstSlot = course.timeslots?.find(s => s.day && s.startTime) || {
+                            day: "Mon",
+                            startTime: "08:00",
+                            endTime: "09:30"
+                          };
+                          handleCourseClick(course, firstSlot.day, firstSlot.startTime, firstSlot.endTime);
+                        }}
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="font-semibold text-gray-900 text-sm">
+                            {course.courseId}
+                          </div>
+                          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
+                            Partial
+                          </span>
                         </div>
-                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800">
-                          Partial
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-600 mt-1 truncate">
-                        {course["Course Name"]}
-                      </div>
-                      <div className="text-xs text-amber-700 mt-1">
-                        {course.timeslots.length} slot
-                        {course.timeslots.length !== 1 ? "s" : ""} assigned
-                      </div>
-                      <div className="flex gap-2 mt-2 text-xs">
-                        <div className="flex items-center gap-1 text-gray-600">
-                          <Users size={12} />
-                          {course.studentId.length}
+                        <div className="text-xs text-gray-600 mt-1 truncate">
+                          {course["Course Name"]}
                         </div>
-                        <div className="flex items-center gap-1 text-gray-600">
-                          <Clock size={12} />
-                          {getCourseCredit(course)}{typeof getCourseCredit(course) === "number" ? "cr" : ""}
+                        <div className="text-xs text-amber-700 mt-1">
+                          {course.timeslots.length} slot
+                          {course.timeslots.length !== 1 ? "s" : ""} assigned
+                        </div>
+                        <div className="flex gap-2 mt-2 text-xs">
+                          <div className="flex items-center gap-1 text-gray-600">
+                            <Users size={12} />
+                            {course.studentId.length}
+                          </div>
+                          <div className="flex items-center gap-1 text-gray-600">
+                            <Clock size={12} />
+                            {getCourseCredit(course)}{typeof getCourseCredit(course) === "number" ? "cr" : ""}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                    );
+                  })}
+                </div>
+              )
+            ) : null}
           </div>
 
           {/* Scheduled Courses Section */}
           <div className="flex flex-col flex-shrink-0">
-            <div className="p-4 border-b border-gray-200 bg-blue-50">
-              <h2 className="font-semibold text-gray-900">Scheduled Courses</h2>
-              <p className="text-xs text-gray-600 mt-0.5">
-                {scheduledCourses.length} course
-                {scheduledCourses.length !== 1 ? "s" : ""}
-              </p>
-              <p className="text-xs text-gray-500 mt-1 italic">
-                Drag to move or click to remove slot
-              </p>
+            <div className="p-4 border-b border-gray-200 bg-blue-50 flex items-start justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-gray-900">Scheduled Courses</h2>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  {scheduledCourses.length} course
+                  {scheduledCourses.length !== 1 ? "s" : ""}
+                </p>
+                <p className="text-xs text-gray-500 mt-1 italic">
+                  Drag to move or click to remove slot
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggleSection("scheduled")}
+                className="rounded-md border border-gray-200 bg-white p-1.5 text-gray-600 transition-colors hover:bg-gray-50 hover:text-gray-900"
+                aria-label={
+                  collapsedSections.scheduled
+                    ? "Expand scheduled courses"
+                    : "Collapse scheduled courses"
+                }
+              >
+                {collapsedSections.scheduled ? (
+                  <ChevronRight size={16} />
+                ) : (
+                  <ChevronDown size={16} />
+                )}
+              </button>
             </div>
 
-            {coursesLoading ? (
-              <div className="p-4 space-y-2">
-                {Array.from({ length: 3 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-20 bg-gray-100 rounded animate-pulse"
-                  />
-                ))}
-              </div>
-            ) : scheduledCourses.length === 0 ? (
-              <div className="flex items-center justify-center flex-1 p-4">
-                <div className="text-center text-gray-400">
-                  <Clock className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                  <div className="text-xs font-medium">No scheduled</div>
-                </div>
-              </div>
-            ) : (
-              <div className="p-3">
-                {scheduledCourses.map((course) => {
-                  const colors =
-                    COURSE_TYPE_COLORS[course.courseType] ?? DEFAULT_COLORS;
-                  const isBeingDragged =
-                    draggedCourse?.courseId === course.courseId &&
-                    draggedFromScheduled;
-
-                  // Get first timeslot info
-                  const firstSlot = course.timeslots[0];
-
-                  return (
+            {!collapsedSections.scheduled ? (
+              coursesLoading ? (
+                <div className="p-4 space-y-2">
+                  {Array.from({ length: 3 }).map((_, i) => (
                     <div
-                      key={course._id}
-                      className={`p-3 rounded-lg border-2 mb-2 transition-all group ${
-                        isBeingDragged
-                          ? "opacity-50 scale-95"
-                          : `${colors.bg} ${colors.border} hover:shadow-md`
-                      }`}
-                    >
-                      {/* Make course draggable from scheduled panel */}
-                      {firstSlot && (
-                        <div
-                          draggable
-                          onDragStart={() =>
-                            handleDragStartFromScheduled(
-                              course,
-                              firstSlot.day,
-                              firstSlot.startTime,
-                              firstSlot.endTime,
-                            )
-                          }
-                          onDrag={handleDrag}
-                          onDragEnd={() => {
-                            isDragging.current = false;
-                            setDraggedCourse(null);
-                            setDraggedFromScheduled(false);
-                          }}
-                          className="cursor-move"
-                          onClick={() => handleCourseClick(course, firstSlot.day, firstSlot.startTime, firstSlot.endTime)}
-                        >
-                          <div className="font-semibold text-gray-900 text-sm">
-                            {course.courseId}
-                          </div>
-                          <div className="text-xs text-gray-600 mt-1 truncate">
-                            {course["Course Name"]}
-                          </div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            {firstSlot.day} {firstSlot.startTime}–
-                            {firstSlot.endTime}
-                          </div>
-                          <div className="flex gap-2 mt-2 text-xs">
-                            <div className="flex items-center gap-1 text-gray-600">
-                              <Users size={12} />
-                              {course.studentId?.length || 0}
-                            </div>
-                            <div className="flex items-center gap-1 text-gray-600">
-                              <Clock size={12} />
-                              {getCourseCredit(course)}{typeof getCourseCredit(course) === "number" ? "cr" : ""}
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      <button
-                        onClick={() => {
-                          setDeletingCourseId(course.courseId);
-                          setDeletingSlotInfo({
-                            day: firstSlot.day,
-                            startTime: firstSlot.startTime,
-                            endTime: firstSlot.endTime,
-                            roomNumber: getRoomNumberForSlot(
-                              course,
-                              firstSlot.day,
-                              firstSlot.startTime,
-                              firstSlot.endTime,
-                            ),
-                          });
-                          setShowDeleteConfirm(true);
-                        }}
-                        className="w-full mt-2 px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100"
+                      key={i}
+                      className="h-20 bg-gray-100 rounded animate-pulse"
+                    />
+                  ))}
+                </div>
+              ) : scheduledCourses.length === 0 ? (
+                <div className="flex items-center justify-center flex-1 p-4">
+                  <div className="text-center text-gray-400">
+                    <Clock className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                    <div className="text-xs font-medium">No scheduled</div>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3">
+                  {scheduledCourses.map((course) => {
+                    const colors =
+                      COURSE_TYPE_COLORS[course.courseType] ?? DEFAULT_COLORS;
+                    const isBeingDragged =
+                      draggedCourse?.courseId === course.courseId &&
+                      draggedFromScheduled;
+
+                    const firstSlot = course.timeslots[0];
+
+                    return (
+                      <div
+                        key={course._id}
+                        className={`p-3 rounded-lg border-2 mb-2 transition-all group ${
+                          isBeingDragged
+                            ? "opacity-50 scale-95"
+                            : `${colors.bg} ${colors.border} hover:shadow-md`
+                        }`}
                       >
-                        <Trash2 size={12} />
-                        Remove Slot
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                        {firstSlot && (
+                          <div
+                            draggable
+                            onDragStart={() =>
+                              handleDragStartFromScheduled(
+                                course,
+                                firstSlot.day,
+                                firstSlot.startTime,
+                                firstSlot.endTime,
+                              )
+                            }
+                            onDrag={handleDrag}
+                            onDragEnd={() => {
+                              isDragging.current = false;
+                              setDraggedCourse(null);
+                              setDraggedFromScheduled(false);
+                            }}
+                            className="cursor-move"
+                            onClick={() => handleCourseClick(course, firstSlot.day, firstSlot.startTime, firstSlot.endTime)}
+                          >
+                            <div className="font-semibold text-gray-900 text-sm">
+                              {course.courseId}
+                            </div>
+                            <div className="text-xs text-gray-600 mt-1 truncate">
+                              {course["Course Name"]}
+                            </div>
+                            <div className="text-xs text-gray-600 mt-1">
+                              {firstSlot.day} {firstSlot.startTime}–
+                              {firstSlot.endTime}
+                            </div>
+                            <div className="flex gap-2 mt-2 text-xs">
+                              <div className="flex items-center gap-1 text-gray-600">
+                                <Users size={12} />
+                                {course.studentId?.length || 0}
+                              </div>
+                              <div className="flex items-center gap-1 text-gray-600">
+                                <Clock size={12} />
+                                {getCourseCredit(course)}{typeof getCourseCredit(course) === "number" ? "cr" : ""}
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        <button
+                          onClick={() => {
+                            setDeletingCourseId(course.courseId);
+                            setDeletingSlotInfo({
+                              day: firstSlot.day,
+                              startTime: firstSlot.startTime,
+                              endTime: firstSlot.endTime,
+                              roomNumber: getRoomNumberForSlot(
+                                course,
+                                firstSlot.day,
+                                firstSlot.startTime,
+                                firstSlot.endTime,
+                              ),
+                            });
+                            setShowDeleteConfirm(true);
+                          }}
+                          className="w-full mt-2 px-2 py-1 rounded text-xs font-medium bg-red-50 text-red-700 hover:bg-red-100 transition-colors flex items-center justify-center gap-1 opacity-0 group-hover:opacity-100"
+                        >
+                          <Trash2 size={12} />
+                          Remove Slot
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )
+            ) : null}
           </div>
         </div>
 

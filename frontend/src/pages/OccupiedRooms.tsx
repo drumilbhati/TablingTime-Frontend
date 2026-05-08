@@ -25,7 +25,12 @@ type RoomRef =
 			slot?: string;
 	  };
 
-interface TimeslotKey {
+interface TimeslotRange {
+	startTime: string;
+	endTime: string;
+}
+
+interface SelectedTimeslot {
 	day: string;
 	startTime: string;
 	endTime: string;
@@ -33,7 +38,7 @@ interface TimeslotKey {
 
 const OccupiedRooms = () => {
 	const { courses, loading, error, refetch } = useCourses();
-	const [selectedTimeslot, setSelectedTimeslot] = useState<TimeslotKey | null>(
+	const [selectedTimeslot, setSelectedTimeslot] = useState<SelectedTimeslot | null>(
 		null,
 	);
 	const [selectedBuilding, setSelectedBuilding] = useState("ALL");
@@ -52,13 +57,12 @@ const OccupiedRooms = () => {
 	}, [courses]);
 
 	const timeslots = useMemo(() => {
-		const map = new Map<string, TimeslotKey>();
+		const map = new Map<string, TimeslotRange>();
 		courses.forEach((course) => {
 			(course.timeslots || []).forEach((slot) => {
-				const key = `${slot.day}|${slot.startTime}|${slot.endTime}`;
+				const key = `${slot.startTime}|${slot.endTime}`;
 				if (!map.has(key)) {
 					map.set(key, {
-						day: slot.day,
 						startTime: slot.startTime,
 						endTime: slot.endTime,
 					});
@@ -67,7 +71,6 @@ const OccupiedRooms = () => {
 		});
 
 		return Array.from(map.values()).sort((a, b) => {
-			if (a.day !== b.day) return a.day.localeCompare(b.day);
 			return a.startTime.localeCompare(b.startTime);
 		});
 	}, [courses]);

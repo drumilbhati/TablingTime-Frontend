@@ -2,276 +2,248 @@ import { useState } from "react";
 import { useCourses, type Course } from "../context/CoursesContext";
 import ErrorState from "./ErrorState";
 import { CourseDetailsModal } from "./CourseDetailsModal";
+import { getCourseColors } from "../lib/courseColors";
 
 interface TimetableProps {
-  selectedCourse: string | null;
+	selectedCourse: string | null;
 }
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const DAY_FULL: Record<string, string> = {
-  Mon: "Monday",
-  Tue: "Tuesday",
-  Wed: "Wednesday",
-  Thu: "Thursday",
-  Fri: "Friday",
-  Sat: "Saturday",
+	Mon: "Monday",
+	Tue: "Tuesday",
+	Wed: "Wednesday",
+	Thu: "Thursday",
+	Fri: "Friday",
+	Sat: "Saturday",
 };
 
-const COURSE_TYPE_COLORS: Record<
-  string,
-  { bg: string; border: string; text: string; selectedBg: string }
-> = {
-  CORE: {
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    text: "text-blue-800",
-    selectedBg: "bg-blue-600",
-  },
-  ELECTIVE: {
-    bg: "bg-purple-50",
-    border: "border-purple-200",
-    text: "text-purple-800",
-    selectedBg: "bg-purple-600",
-  },
-  LAB: {
-    bg: "bg-green-50",
-    border: "border-green-200",
-    text: "text-green-800",
-    selectedBg: "bg-green-600",
-  },
-};
+interface RoomInfo {
+	roomNumber?: string;
+	name?: string;
+	_id?: string;
+	building?: string;
+}
 
-const DEFAULT_COLORS = {
-  bg: "bg-gray-50",
-  border: "border-gray-200",
-  text: "text-gray-700",
-  selectedBg: "bg-gray-700",
-};
-
-const formatRooms = (rooms: any[]) => {
-  if (!rooms || rooms.length === 0) return "";
-  const valid = rooms
-    .map((r) => {
-      if (typeof r === "string") return r === "[object Object]" ? "" : r;
-      if (r && typeof r === "object") {
-        const roomName = r.roomNumber || r.name || r._id || "";
-        if (r.building && roomName) {
-          return `${r.building} - ${roomName}`;
-        }
-        return roomName;
-      }
-      return String(r);
-    })
-    .filter(Boolean);
-  return Array.from(new Set(valid)).join(", ");
+const formatRooms = (rooms: (string | RoomInfo)[]) => {
+	if (!rooms || rooms.length === 0) return "";
+	const valid = rooms
+		.map((r) => {
+			if (typeof r === "string") return r === "[object Object]" ? "" : r;
+			if (r && typeof r === "object") {
+				const roomName = (r as RoomInfo).roomNumber || (r as RoomInfo).name || (r as RoomInfo)._id || "";
+				if ((r as RoomInfo).building && roomName) {
+					return `${(r as RoomInfo).building} - ${roomName}`;
+				}
+				return roomName;
+			}
+			return String(r);
+		})
+		.filter(Boolean);
+	return Array.from(new Set(valid)).join(", ");
 };
 
 const Timetable = ({ selectedCourse }: TimetableProps) => {
-  const { courses, loading, error, refetch } = useCourses();
-  const [activeModal, setActiveModal] = useState<{
-    course: Course;
-    day: string;
-    startTime: string;
-    endTime: string;
-  } | null>(null);
+	const { courses, loading, error, refetch } = useCourses();
+	const [activeModal, setActiveModal] = useState<{
+		course: Course;
+		day: string;
+		startTime: string;
+		endTime: string;
+	} | null>(null);
 
-  // Build a sorted list of unique timeslot time-ranges across all courses
-  const getUniqueTimeslots = (): { startTime: string; endTime: string }[] => {
-    const seen = new Map<string, { startTime: string; endTime: string }>();
-    courses.forEach((course) => {
-      course.timeslots.forEach((slot) => {
-        const key = `${slot.startTime}|${slot.endTime}`;
-        if (!seen.has(key)) {
-          seen.set(key, { startTime: slot.startTime, endTime: slot.endTime });
-        }
-      });
-    });
-    return Array.from(seen.values()).sort((a, b) =>
-      a.startTime.localeCompare(b.startTime),
-    );
-  };
+	// Build a sorted list of unique timeslot time-ranges across all courses
+	const getUniqueTimeslots = (): { startTime: string; endTime: string }[] => {
+		const seen = new Map<string, { startTime: string; endTime: string }>();
+		courses.forEach((course) => {
+			(course.timeslots || []).forEach((slot) => {
+				const key = `${slot.startTime}|${slot.endTime}`;
+				if (!seen.has(key)) {
+					seen.set(key, { startTime: slot.startTime, endTime: slot.endTime });
+				}
+			});
+		});
+		return Array.from(seen.values()).sort((a, b) =>
+			a.startTime.localeCompare(b.startTime),
+		);
+	};
 
-  // Get the course(s) scheduled at a specific day + timeslot
-  const getCoursesAtSlot = (
-    day: string,
-    startTime: string,
-    endTime: string,
-  ): Course[] => {
-    return courses.filter((course) =>
-      course.timeslots.some(
-        (slot) =>
-          slot.day === day &&
-          slot.startTime === startTime &&
-          slot.endTime === endTime,
-      ),
-    );
-  };
+	// Get the course(s) scheduled at a specific day + timeslot
+	const getCoursesAtSlot = (
+		day: string,
+		startTime: string,
+		endTime: string,
+	): Course[] => {
+		return courses.filter((course) =>
+			(course.timeslots || []).some(
+				(slot) =>
+					slot.day === day &&
+					slot.startTime === startTime &&
+					slot.endTime === endTime,
+			),
+		);
+	};
 
-  const timeslots = getUniqueTimeslots();
+	const timeslots = getUniqueTimeslots();
 
-  if (error) {
-    return (
-      <div className="flex-1 flex flex-col bg-white p-4">
-        <ErrorState error={error} onRetry={refetch} />
-      </div>
-    );
-  }
+	if (error) {
+		return (
+			<div className="flex-1 flex flex-col bg-white p-4">
+				<ErrorState error={error} onRetry={refetch} />
+			</div>
+		);
+	}
 
-  return (
-    <div className="flex-1 flex flex-col bg-white p-4">
-      {loading ? (
-        <div className="flex-1 flex flex-col gap-3">
-          {/* Skeleton header */}
-          <div className="h-10 bg-gray-100 rounded animate-pulse" />
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-16 bg-gray-50 rounded animate-pulse" />
-          ))}
-        </div>
-      ) : timeslots.length === 0 ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="text-center text-gray-400">
-            <div className="text-4xl mb-2">📅</div>
-            <div className="text-sm font-medium">
-              No timetable data available
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-auto">
-          <table className="w-full border-collapse">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="border-b border-r border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-32 sticky left-0 bg-gray-50 z-10">
-                  Time
-                </th>
-                {DAYS.map((day) => (
-                  <th
-                    key={day}
-                    className="border-b border-r border-gray-200 px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-40"
-                  >
-                    {DAY_FULL[day]}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {timeslots.map(({ startTime, endTime }, rowIdx) => (
-                <tr
-                  key={`${startTime}|${endTime}`}
-                  className={rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50"}
-                >
-                  {/* Time label */}
-                  <td className="border-b border-r border-gray-200 px-4 py-3 text-xs font-medium text-gray-600 whitespace-nowrap sticky left-0 bg-inherit z-10">
-                    <div>{startTime}</div>
-                    <div className="text-gray-400">{endTime}</div>
-                  </td>
+	return (
+		<div className="flex-1 flex flex-col bg-white p-6">
+			{loading ? (
+				<div className="flex-1 flex flex-col gap-4">
+					<div className="h-10 bg-gray-50 rounded-lg animate-pulse" />
+					{Array.from({ length: 5 }).map((_, i) => (
+						<div
+							key={i}
+							className="h-20 bg-gray-50 rounded-lg animate-pulse border border-gray-100/50"
+						/>
+					))}
+				</div>
+			) : timeslots.length === 0 ? (
+				<div className="flex-1 flex flex-col items-center justify-center bg-gray-50/50 rounded-2xl border border-dashed border-gray-200">
+					<div className="text-3xl mb-3 grayscale opacity-30">📅</div>
+					<h3 className="section-title text-gray-400">
+						No timetable data available
+					</h3>
+					<p className="body-sm mt-1 text-gray-300">
+						Wait for the admin to release the next schedule.
+					</p>
+				</div>
+			) : (
+				<div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-auto no-scrollbar">
+					<table className="w-full border-collapse">
+						<thead>
+							<tr className="bg-gray-50 border-b border-gray-200">
+								<th className="px-4 py-3 text-left w-32 sticky left-0 bg-gray-50 z-10">
+									<span className="eyebrow-label">Time</span>
+								</th>
+								{DAYS.map((day) => (
+									<th
+										key={day}
+										className="px-4 py-3 text-center min-w-40 border-l border-gray-100"
+									>
+										<span className="eyebrow-label text-gray-900">
+											{DAY_FULL[day]}
+										</span>
+									</th>
+								))}
+							</tr>
+						</thead>
+						<tbody>
+							{timeslots.map(({ startTime, endTime }, rowIdx) => (
+								<tr
+									key={`${startTime}|${endTime}`}
+									className={`${rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50/30"} border-b border-gray-100 last:border-0`}
+								>
+									{/* Time label */}
+									<td className="px-4 py-4 sticky left-0 bg-inherit z-10 border-r border-gray-100">
+										<div className="text-sm font-bold text-gray-900 tracking-tight">
+											{startTime}
+										</div>
+										<div className="text-[10px] font-medium text-gray-400 mt-1">
+											{endTime}
+										</div>
+									</td>
 
-                  {/* Day cells */}
-                  {DAYS.map((day) => {
-                    const cellCourses = getCoursesAtSlot(
-                      day,
-                      startTime,
-                      endTime,
-                    );
+									{/* Day cells */}
+									{DAYS.map((day) => {
+										const cellCourses = getCoursesAtSlot(
+											day,
+											startTime,
+											endTime,
+										);
 
-                    return (
-                      <td
-                        key={day}
-                        className="border-b border-r border-gray-200 px-2 py-2 align-top min-h-18"
-                      >
-                        <div className="flex flex-col gap-1">
-                          {cellCourses.map((course) => {
-                            const isSelected =
-                              selectedCourse === course.courseId;
-                            const colors =
-                              COURSE_TYPE_COLORS[course.courseType] ??
-                              DEFAULT_COLORS;
+										return (
+											<td
+												key={day}
+												className="px-1.5 py-1.5 align-top border-l border-gray-50 min-h-20"
+											>
+												<div className="flex flex-col gap-1.5">
+													{cellCourses.map((course) => {
+														const isSelected =
+															selectedCourse === course.courseId;
+														const colors = getCourseColors(course);
 
-                            return (
-                              <button
-                                key={course._id}
-                                onClick={() =>
-                                  setActiveModal({
-                                    course,
-                                    day,
-                                    startTime,
-                                    endTime,
-                                  })
-                                }
-                                title={`${course.courseId} — ${course["Course Name"]}`}
-                                className={`w-full text-left rounded-md border px-2 py-1.5 text-xs font-medium transition-all hover:shadow-md ${
-                                  isSelected
-                                    ? `${colors.selectedBg} text-white border-transparent shadow-sm`
-                                    : `${colors.bg} ${colors.text} ${colors.border} hover:brightness-95`
-                                }`}
-                              >
-                                <div className="font-semibold truncate">
-                                  {course.courseId}
-                                </div>
-                                <div
-                                  className={`truncate mt-0.5 ${
-                                    isSelected ? "text-white/70" : "opacity-70"
-                                  }`}
-                                >
-                                  {course["Course Name"]}
-                                </div>
-                                {formatRooms(course.room) && (
-                                  <div
-                                    className={`mt-0.5 ${
-                                      isSelected
-                                        ? "text-white/60"
-                                        : "opacity-50"
-                                    }`}
-                                  >
-                                    🏫 {formatRooms(course.room)}
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+														return (
+															<button
+																key={course._id}
+																onClick={() =>
+																	setActiveModal({
+																		course,
+																		day,
+																		startTime,
+																		endTime,
+																	})
+																}
+																title={`${course.courseCode || course.courseId} — ${course.courseName}`}
+																className={`w-full text-left rounded-lg border p-2 transition-all hover:scale-[1.01] active:scale-[0.99] ${colors.bg} ${colors.text} ${colors.border} ${colors.hoverBg} ${
+																	isSelected
+																		? "ring-2 ring-gray-900/10"
+																		: "hover:border-gray-300"
+																}`}
+															>
+																<div className="font-bold text-[11px] leading-tight mb-1">
+																	{course.courseCode || course.courseId}
+																</div>
+																<div className="text-[10px] font-medium line-clamp-1 leading-tight text-gray-600">
+																	{course.courseName}
+																</div>
+																{formatRooms(course.room) && (
+																	<div className="mt-1.5 flex items-center gap-1 text-[9px] font-semibold text-gray-500">
+																		<div className="w-1 h-1 rounded-full bg-current opacity-40" />
+																		{formatRooms(course.room)}
+																	</div>
+																)}
+															</button>
+														);
+													})}
+												</div>
+											</td>
+										);
+									})}
+								</tr>
+							))}
+						</tbody>
+					</table>
+				</div>
+			)}
 
-      {/* Legend */}
-      {!loading && timeslots.length > 0 && (
-        <div className="flex items-center gap-4 mt-3 px-1">
-          <span className="text-xs text-gray-400 font-medium">Type:</span>
-          {Object.entries(COURSE_TYPE_COLORS).map(([type, colors]) => (
-            <div key={type} className="flex items-center gap-1.5">
-              <div
-                className={`w-3 h-3 rounded-sm border ${colors.bg} ${colors.border}`}
-              />
-              <span className="text-xs text-gray-500">{type}</span>
-            </div>
-          ))}
-          <span className="text-xs text-gray-400 ml-2">
-            (Selected course is highlighted)
-          </span>
-        </div>
-      )}
+			{/* Legend */}
+			{!loading && timeslots.length > 0 && (
+				<div className="flex items-center justify-between mt-4 px-1">
+					<div className="flex items-center gap-6">
+						<div className="flex items-center gap-2">
+							<div className="w-1 h-3 bg-gray-200 rounded-full" />
+							<span className="label-caps">Prefix-based Colors</span>
+						</div>
+					</div>
+					<span className="body-sm text-gray-300 font-medium">
+						TABLINGTIME SCHEDULER v1.0
+					</span>
+				</div>
+			)}
 
-      {/* Course detail modal */}
-      {activeModal && (
-        <CourseDetailsModal
-          course={activeModal.course}
-          day={activeModal.day}
-          startTime={activeModal.startTime}
-          endTime={activeModal.endTime}
-          isSelected={selectedCourse === activeModal.course.courseId}
-          onClose={() => setActiveModal(null)}
-        />
-      )}
-    </div>
-  );
+			{/* Course detail modal */}
+			{activeModal && (
+				<CourseDetailsModal
+					course={activeModal.course}
+					day={activeModal.day}
+					startTime={activeModal.startTime}
+					endTime={activeModal.endTime}
+					isSelected={selectedCourse === activeModal.course.courseId}
+					onClose={() => setActiveModal(null)}
+				/>
+			)}
+		</div>
+	);
 };
 
 export default Timetable;

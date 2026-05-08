@@ -1,725 +1,562 @@
 import { useEffect, useState } from "react";
-import { useAuth } from "../context/AuthContext";
-import ErrorState from "../components/ErrorState";
-import { X, Search, Upload } from "lucide-react";
+import {
+	X,
+	Search,
+	Upload,
+	Trash2,
+	UserCog,
+	Mail,
+	Sliders,
+} from "lucide-react";
 import { buildApiUrl } from "../lib/api";
 import ProfessorPreferenceUploadModal from "../components/ProfessorPreferenceUploadModal";
+import { toast } from "sonner";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface User {
-  _id: string;
-  name: string;
-  email: string;
-  role: "student" | "faculty" | "admin";
+	_id: string;
+	name: string;
+	email: string;
+	role: "student" | "faculty" | "admin";
 }
 
 type PreferenceStatus =
-  | { type: "idle" }
-  | { type: "loading" }
-  | { type: "success"; message: string }
-  | { type: "error"; message: string };
+	| { type: "idle" }
+	| { type: "loading" }
+	| { type: "success"; message: string }
+	| { type: "error"; message: string };
 
 type PreferenceFormState = {
-  preferDays: string[];
-  avoidDays: string[];
-  avoidBefore: string;
-  avoidAfter: string;
-  avoidRanges: Array<{ start: string; end: string }>;
+	preferDays: string[];
+	avoidDays: string[];
+	avoidBefore: string;
+	avoidAfter: string;
+	avoidRanges: Array<{ start: string; end: string }>;
 };
 
 const DAY_OPTIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const createEmptyFormState = (): PreferenceFormState => ({
-  preferDays: [],
-  avoidDays: [],
-  avoidBefore: "",
-  avoidAfter: "",
-  avoidRanges: [],
+	preferDays: [],
+	avoidDays: [],
+	avoidBefore: "",
+	avoidAfter: "",
+	avoidRanges: [],
 });
 
 const normalizeTime = (value: string): string | null => {
-  const trimmed = value.trim();
-  const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
-  if (!match) return null;
-
-  const h = Number(match[1]);
-  const m = Number(match[2]);
-  if (!Number.isFinite(h) || !Number.isFinite(m) || h > 23 || m > 59) {
-    return null;
-  }
-
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+	const trimmed = value.trim();
+	const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+	if (!match) return null;
+	const h = Number(match[1]);
+	const m = Number(match[2]);
+	if (!Number.isFinite(h) || !Number.isFinite(m) || h > 23 || m > 59)
+		return null;
+	return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 };
 
 const toRawInput = (state: PreferenceFormState): string => {
-  const lines: string[] = [];
-
-  if (state.preferDays.length > 0) {
-    lines.push(`PREFER_DAYS: ${state.preferDays.join(", ")}`);
-  }
-  if (state.avoidDays.length > 0) {
-    lines.push(`AVOID_DAYS: ${state.avoidDays.join(", ")}`);
-  }
-
-  const before = normalizeTime(state.avoidBefore);
-  if (before) {
-    lines.push(`AVOID_BEFORE: ${before}`);
-  }
-
-  const after = normalizeTime(state.avoidAfter);
-  if (after) {
-    lines.push(`AVOID_AFTER: ${after}`);
-  }
-
-  const ranges = state.avoidRanges
-    .map((range) => {
-      const start = normalizeTime(range.start);
-      const end = normalizeTime(range.end);
-      if (!start || !end) return null;
-      return `${start}-${end}`;
-    })
-    .filter((range): range is string => Boolean(range));
-
-  if (ranges.length > 0) {
-    lines.push(`AVOID_RANGES: ${ranges.join(", ")}`);
-  }
-
-  return lines.join("\n");
+	const lines: string[] = [];
+	if (state.preferDays.length > 0)
+		lines.push(`PREFER_DAYS: ${state.preferDays.join(", ")}`);
+	if (state.avoidDays.length > 0)
+		lines.push(`AVOID_DAYS: ${state.avoidDays.join(", ")}`);
+	const before = normalizeTime(state.avoidBefore);
+	if (before) lines.push(`AVOID_BEFORE: ${before}`);
+	const after = normalizeTime(state.avoidAfter);
+	if (after) lines.push(`AVOID_AFTER: ${after}`);
+	const ranges = state.avoidRanges
+		.map((range) => {
+			const start = normalizeTime(range.start);
+			const end = normalizeTime(range.end);
+			if (!start || !end) return null;
+			return `${start}-${end}`;
+		})
+		.filter((range): range is string => Boolean(range));
+	if (ranges.length > 0) lines.push(`AVOID_RANGES: ${ranges.join(", ")}`);
+	return lines.join("\n");
 };
 
 const parseRawInputToFormState = (raw: string): PreferenceFormState => {
-  const nextState = createEmptyFormState();
-  const lines = raw.split(/\r?\n/);
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) continue;
-
-    const separatorIndex = line.indexOf(":");
-    if (separatorIndex === -1) continue;
-
-    const key = line.slice(0, separatorIndex).trim().toUpperCase();
-    const value = line.slice(separatorIndex + 1).trim();
-
-    if (key === "PREFER_DAYS") {
-      nextState.preferDays = value
-        .split(",")
-        .map((token) => token.trim())
-        .filter((token) => DAY_OPTIONS.includes(token));
-      continue;
-    }
-
-    if (key === "AVOID_DAYS") {
-      nextState.avoidDays = value
-        .split(",")
-        .map((token) => token.trim())
-        .filter((token) => DAY_OPTIONS.includes(token));
-      continue;
-    }
-
-    if (key === "AVOID_BEFORE") {
-      nextState.avoidBefore = value;
-      continue;
-    }
-
-    if (key === "AVOID_AFTER") {
-      nextState.avoidAfter = value;
-      continue;
-    }
-
-    if (key === "AVOID_RANGES") {
-      nextState.avoidRanges = value
-        .split(",")
-        .map((part) => part.trim())
-        .filter(Boolean)
-        .map((part) => {
-          const [start, end] = part.split("-").map((token) => token.trim());
-          return { start: start ?? "", end: end ?? "" };
-        })
-        .filter((range) => range.start.length > 0 || range.end.length > 0);
-      continue;
-    }
-  }
-
-  return nextState;
+	const nextState = createEmptyFormState();
+	if (!raw) return nextState;
+	const lines = raw.split(/\r?\n/);
+	for (const rawLine of lines) {
+		const line = rawLine.trim();
+		if (!line) continue;
+		const sep = line.indexOf(":");
+		if (sep === -1) continue;
+		const key = line.slice(0, sep).trim().toUpperCase();
+		const val = line.slice(sep + 1).trim();
+		if (key === "PREFER_DAYS") {
+			nextState.preferDays = val
+				.split(",")
+				.map((t) => t.trim())
+				.filter((t) => DAY_OPTIONS.includes(t));
+		} else if (key === "AVOID_DAYS") {
+			nextState.avoidDays = val
+				.split(",")
+				.map((t) => t.trim())
+				.filter((t) => DAY_OPTIONS.includes(t));
+		} else if (key === "AVOID_BEFORE") {
+			nextState.avoidBefore = val;
+		} else if (key === "AVOID_AFTER") {
+			nextState.avoidAfter = val;
+		} else if (key === "AVOID_RANGES") {
+			nextState.avoidRanges = val
+				.split(",")
+				.map((p) => p.trim())
+				.filter(Boolean)
+				.map((p) => {
+					const [s, e] = p.split("-").map((t) => t.trim());
+					return { start: s ?? "", end: e ?? "" };
+				})
+				.filter((r) => r.start.length > 0 || r.end.length > 0);
+		}
+	}
+	return nextState;
 };
 
 // ─── Preference Modal ────────────────────────────────────────────────────────
 
-interface PreferenceModalProps {
-  user: User;
-  onClose: () => void;
-}
+const PreferenceModal = ({
+	user,
+	onClose,
+}: {
+	user: User;
+	onClose: () => void;
+}) => {
+	const [rawInput, setRawInput] = useState("");
+	const [formState, setFormState] = useState<PreferenceFormState>(
+		createEmptyFormState(),
+	);
+	const [status, setStatus] = useState<PreferenceStatus>({ type: "idle" });
+	const [isFetching, setIsFetching] = useState(true);
 
-const PreferenceModal = ({ user, onClose }: PreferenceModalProps) => {
-  const [rawInput, setRawInput] = useState("");
-  const [formState, setFormState] = useState<PreferenceFormState>(
-    createEmptyFormState(),
-  );
-  const [status, setStatus] = useState<PreferenceStatus>({ type: "idle" });
-  const [isFetching, setIsFetching] = useState(true);
+	const handleFormFieldChange = (
+		updater: (state: PreferenceFormState) => PreferenceFormState,
+	) => {
+		setFormState((current) => {
+			const next = updater(current);
+			setRawInput(toRawInput(next));
+			return next;
+		});
+	};
 
-  const handleFormFieldChange = (
-    updater: (state: PreferenceFormState) => PreferenceFormState,
-  ) => {
-    setFormState((current) => {
-      const next = updater(current);
-      setRawInput(toRawInput(next));
-      return next;
-    });
-  };
+	const toggleDaySelection = (key: "preferDays" | "avoidDays", day: string) => {
+		handleFormFieldChange((current) => {
+			const hasDay = current[key].includes(day);
+			return {
+				...current,
+				[key]: hasDay
+					? current[key].filter((d) => d !== day)
+					: [...current[key], day],
+			};
+		});
+	};
 
-  const toggleDaySelection = (
-    key: "preferDays" | "avoidDays",
-    day: string,
-  ) => {
-    handleFormFieldChange((current) => {
-      const hasDay = current[key].includes(day);
-      const nextDays = hasDay
-        ? current[key].filter((d) => d !== day)
-        : [...current[key], day];
+	const clearAllLocal = () => {
+		setFormState(createEmptyFormState());
+		setRawInput("");
+	};
 
-      return {
-        ...current,
-        [key]: nextDays,
-      };
-    });
-  };
+	useEffect(() => {
+		fetch(buildApiUrl(`/api/professor-preferences/${user._id}`))
+			.then((res) => (res.ok ? res.json() : null))
+			.then((data) => {
+				if (data) {
+					const raw = data.rawInput || data.preferences?.rawInput || "";
+					setRawInput(raw);
+					setFormState(parseRawInputToFormState(raw));
+				}
+			})
+			.finally(() => setIsFetching(false));
+	}, [user._id]);
 
-  const addRange = () => {
-    handleFormFieldChange((current) => ({
-      ...current,
-      avoidRanges: [...current.avoidRanges, { start: "", end: "" }],
-    }));
-  };
+	const handleSave = async () => {
+		setStatus({ type: "loading" });
+		try {
+			const res = await fetch(buildApiUrl("/api/professor-preferences"), {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ professorId: user._id, rawInput }),
+			});
+			if (!res.ok) throw new Error("Server error");
+			setStatus({ type: "success", message: "Preferences updated." });
+			setTimeout(onClose, 1000);
+		} catch {
+			setStatus({ type: "error", message: "Failed to save." });
+		}
+	};
 
-  const updateRange = (
-    index: number,
-    field: "start" | "end",
-    value: string,
-  ) => {
-    handleFormFieldChange((current) => ({
-      ...current,
-      avoidRanges: current.avoidRanges.map((range, rangeIndex) =>
-        rangeIndex === index ? { ...range, [field]: value } : range,
-      ),
-    }));
-  };
+	const isSubmitting = status.type === "loading";
+	const isDone = status.type === "success";
 
-  const removeRange = (index: number) => {
-    handleFormFieldChange((current) => ({
-      ...current,
-      avoidRanges: current.avoidRanges.filter((_, rangeIndex) => rangeIndex !== index),
-    }));
-  };
+	return (
+		<div
+			className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+			onClick={onClose}
+		>
+			<div
+				className="bg-white rounded-xl shadow-xl max-w-lg w-full flex flex-col max-h-[90vh] overflow-hidden"
+				onClick={(e) => e.stopPropagation()}
+			>
+				<div
+					className={`flex justify-between items-center p-5 border-b ${isDone ? "bg-green-50 border-green-100" : "bg-gray-50 border-gray-100"}`}
+				>
+					<div>
+						<h3 className="panel-title">{user.name}</h3>
+						<p className="body-sm text-gray-500">Scheduling Preferences</p>
+					</div>
+					<button
+						onClick={onClose}
+						className="text-gray-400 hover:text-gray-600"
+					>
+						<X size={20} />
+					</button>
+				</div>
 
-  useEffect(() => {
-    // Fetch existing preferences on mount
-    const fetchExisting = async () => {
-      try {
-        const res = await fetch(buildApiUrl(`/api/professor-preferences/${user._id}`));
-        if (res.ok) {
-          const data = await res.json();
-          // Assuming data has preferences.rawInput or something similar
-          // If the API returns the DB preferences sub-document
-          if (data && data.rawInput) {
-            setRawInput(data.rawInput);
-            setFormState(parseRawInputToFormState(data.rawInput));
-          } else if (data && data.preferences && data.preferences.rawInput) {
-            setRawInput(data.preferences.rawInput);
-            setFormState(parseRawInputToFormState(data.preferences.rawInput));
-          } else {
-            const fallbackRaw = [
-              data?.preferDays?.length
-                ? `PREFER_DAYS: ${data.preferDays.join(", ")}`
-                : "",
-              data?.avoidDays?.length
-                ? `AVOID_DAYS: ${data.avoidDays.join(", ")}`
-                : "",
-              data?.avoidBefore ? `AVOID_BEFORE: ${data.avoidBefore}` : "",
-              data?.avoidAfter ? `AVOID_AFTER: ${data.avoidAfter}` : "",
-              data?.avoidRanges?.length
-                ? `AVOID_RANGES: ${data.avoidRanges
-                    .map((range: { start: string; end: string }) => `${range.start}-${range.end}`)
-                    .join(", ")}`
-                : "",
-            ]
-              .filter(Boolean)
-              .join("\n");
+				<div className="flex-1 overflow-y-auto p-6 space-y-6">
+					<div className="grid grid-cols-2 gap-4">
+						<div className="space-y-2">
+							<label className="label-caps">Preferred Days</label>
+							<div className="flex flex-wrap gap-1">
+								{DAY_OPTIONS.map((day) => (
+									<button
+										key={day}
+										onClick={() => toggleDaySelection("preferDays", day)}
+										disabled={isFetching || isSubmitting || isDone}
+										className={`px-2.5 py-1.5 rounded border text-[10px] font-bold transition-all ${formState.preferDays.includes(day) ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-500 border-gray-100 hover:border-gray-300"}`}
+									>
+										{day}
+									</button>
+								))}
+							</div>
+						</div>
+						<div className="space-y-2">
+							<label className="label-caps">Avoid Days</label>
+							<div className="flex flex-wrap gap-1">
+								{DAY_OPTIONS.map((day) => (
+									<button
+										key={day}
+										onClick={() => toggleDaySelection("avoidDays", day)}
+										disabled={isFetching || isSubmitting || isDone}
+										className={`px-2.5 py-1.5 rounded border text-[10px] font-bold transition-all ${formState.avoidDays.includes(day) ? "bg-red-600 text-white border-red-600" : "bg-white text-gray-500 border-gray-100 hover:border-gray-300"}`}
+									>
+										{day}
+									</button>
+								))}
+							</div>
+						</div>
+					</div>
 
-            setRawInput(fallbackRaw);
-            setFormState(parseRawInputToFormState(fallbackRaw));
-          }
-        }
-      } catch (err) {
-        console.error("Failed to fetch preferences:", err);
-      } finally {
-        setIsFetching(false);
-      }
-    };
-    fetchExisting();
-  }, [user._id]);
+					<div className="grid grid-cols-2 gap-4">
+						<div>
+							<label className="label-caps mb-1 block">Avoid Before</label>
+							<input
+								type="time"
+								value={formState.avoidBefore}
+								onChange={(e) =>
+									handleFormFieldChange((c) => ({
+										...c,
+										avoidBefore: e.target.value,
+									}))
+								}
+								className="w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 outline-none"
+							/>
+						</div>
+						<div>
+							<label className="label-caps mb-1 block">Avoid After</label>
+							<input
+								type="time"
+								value={formState.avoidAfter}
+								onChange={(e) =>
+									handleFormFieldChange((c) => ({
+										...c,
+										avoidAfter: e.target.value,
+									}))
+								}
+								className="w-full rounded border border-gray-200 px-3 py-2 text-sm focus:border-gray-400 outline-none"
+							/>
+						</div>
+					</div>
 
-  const handleSave = async () => {
-    setStatus({ type: "loading" });
-    try {
-      const res = await fetch(buildApiUrl("/api/professor-preferences"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          professorId: user._id,
-          rawInput: rawInput,
-        }),
-      });
+					<div className="space-y-2">
+						<div className="flex justify-between items-center">
+							<label className="label-caps">Blocked Time Ranges</label>
+							<button
+								onClick={() =>
+									handleFormFieldChange((c) => ({
+										...c,
+										avoidRanges: [...c.avoidRanges, { start: "", end: "" }],
+									}))
+								}
+								className="text-[10px] font-bold text-gray-900 border border-gray-200 px-2 py-1 rounded hover:bg-gray-50"
+							>
+								+ Add Range
+							</button>
+						</div>
+						{formState.avoidRanges.map((range, idx) => (
+							<div key={idx} className="flex items-center gap-2">
+								<input
+									type="time"
+									value={range.start}
+									onChange={(e) =>
+										handleFormFieldChange((c) => ({
+											...c,
+											avoidRanges: c.avoidRanges.map((r, i) =>
+												i === idx ? { ...r, start: e.target.value } : r,
+											),
+										}))
+									}
+									className="flex-1 rounded border border-gray-200 px-2 py-1 text-xs"
+								/>
+								<span className="text-gray-400 text-xs">to</span>
+								<input
+									type="time"
+									value={range.end}
+									onChange={(e) =>
+										handleFormFieldChange((c) => ({
+											...c,
+											avoidRanges: c.avoidRanges.map((r, i) =>
+												i === idx ? { ...r, end: e.target.value } : r,
+											),
+										}))
+									}
+									className="flex-1 rounded border border-gray-200 px-2 py-1 text-xs"
+								/>
+								<button
+									onClick={() =>
+										handleFormFieldChange((c) => ({
+											...c,
+											avoidRanges: c.avoidRanges.filter((_, i) => i !== idx),
+										}))
+									}
+									className="text-red-500 p-1 hover:bg-red-50 rounded"
+								>
+									<Trash2 size={14} />
+								</button>
+							</div>
+						))}
+					</div>
 
-      const data = await res.json();
+					<div className="space-y-1">
+						<label className="label-caps opacity-50">Logical Preview</label>
+						<pre className="bg-gray-950 rounded p-4 text-[10px] font-mono text-gray-400 overflow-x-auto">
+							{rawInput || "# No logic defined"}
+						</pre>
+					</div>
 
-      if (!res.ok) {
-        setStatus({
-          type: "error",
-          message: data?.message || `Server error (${res.status})`,
-        });
-        return;
-      }
+					{status.type === "error" && (
+						<div className="p-3 bg-red-50 text-red-600 rounded-lg text-xs font-bold">
+							{status.message}
+						</div>
+					)}
+					{status.type === "success" && (
+						<div className="p-3 bg-green-50 text-green-600 rounded-lg text-xs font-bold">
+							{status.message}
+						</div>
+					)}
+				</div>
 
-      setStatus({
-        type: "success",
-        message: "Preferences updated successfully.",
-      });
-    } catch (err) {
-      setStatus({
-        type: "error",
-        message: err instanceof Error ? err.message : "Unexpected error occurred.",
-      });
-    }
-  };
-
-  const handleClose = () => {
-    setStatus({ type: "idle" });
-    onClose();
-  };
-
-  const isSubmitting = status.type === "loading";
-  const isDone = status.type === "success";
-
-  return (
-    <div
-      className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-      onClick={handleClose}
-    >
-      <div
-        className="bg-white rounded-xl shadow-xl max-w-md w-full"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-start p-5 border-b border-gray-100">
-          <div>
-            <h3 className="panel-title flex items-center gap-2">
-              Update Preferences
-            </h3>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {user.name} <span className="text-gray-400 font-normal">({user.email})</span>
-            </p>
-          </div>
-          <button
-            onClick={handleClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="p-5 space-y-4">
-          <div>
-            <label className="eyebrow-label mb-2 block">Preferred Days</label>
-            <div className="flex flex-wrap gap-2">
-              {DAY_OPTIONS.map((day) => {
-                const selected = formState.preferDays.includes(day);
-                return (
-                  <button
-                    key={`prefer-${day}`}
-                    type="button"
-                    onClick={() => toggleDaySelection("preferDays", day)}
-                    disabled={isFetching || isSubmitting || isDone}
-                    className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      selected
-                        ? "border-gray-900 bg-gray-900 text-white"
-                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                    } disabled:opacity-50`}
-                  >
-                    {day}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div>
-            <label className="eyebrow-label mb-2 block">Avoid Days</label>
-            <div className="flex flex-wrap gap-2">
-              {DAY_OPTIONS.map((day) => {
-                const selected = formState.avoidDays.includes(day);
-                return (
-                  <button
-                    key={`avoid-${day}`}
-                    type="button"
-                    onClick={() => toggleDaySelection("avoidDays", day)}
-                    disabled={isFetching || isSubmitting || isDone}
-                    className={`rounded-md border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      selected
-                        ? "border-red-500 bg-red-500 text-white"
-                        : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
-                    } disabled:opacity-50`}
-                  >
-                    {day}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <div>
-              <label className="eyebrow-label mb-1.5 block">Avoid Before</label>
-              <input
-                type="time"
-                value={formState.avoidBefore}
-                onChange={(e) =>
-                  handleFormFieldChange((current) => ({
-                    ...current,
-                    avoidBefore: e.target.value,
-                  }))
-                }
-                disabled={isFetching || isSubmitting || isDone}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400 disabled:opacity-50"
-              />
-            </div>
-            <div>
-              <label className="eyebrow-label mb-1.5 block">Avoid After</label>
-              <input
-                type="time"
-                value={formState.avoidAfter}
-                onChange={(e) =>
-                  handleFormFieldChange((current) => ({
-                    ...current,
-                    avoidAfter: e.target.value,
-                  }))
-                }
-                disabled={isFetching || isSubmitting || isDone}
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400 disabled:opacity-50"
-              />
-            </div>
-          </div>
-
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <label className="eyebrow-label block">Avoid Time Ranges</label>
-              <button
-                type="button"
-                onClick={addRange}
-                disabled={isFetching || isSubmitting || isDone}
-                className="rounded border border-gray-200 px-2 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-              >
-                Add Range
-              </button>
-            </div>
-            <div className="space-y-2">
-              {formState.avoidRanges.length === 0 && (
-                <p className="text-xs text-gray-500">No blocked ranges added.</p>
-              )}
-              {formState.avoidRanges.map((range, index) => (
-                <div key={`range-${index}`} className="flex items-center gap-2">
-                  <input
-                    type="time"
-                    value={range.start}
-                    onChange={(e) => updateRange(index, "start", e.target.value)}
-                    disabled={isFetching || isSubmitting || isDone}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400 disabled:opacity-50"
-                  />
-                  <span className="text-sm text-gray-500">to</span>
-                  <input
-                    type="time"
-                    value={range.end}
-                    onChange={(e) => updateRange(index, "end", e.target.value)}
-                    disabled={isFetching || isSubmitting || isDone}
-                    className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 focus:border-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-400 disabled:opacity-50"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeRange(index)}
-                    disabled={isFetching || isSubmitting || isDone}
-                    className="rounded border border-gray-200 px-2 py-2 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="eyebrow-label mb-1.5 block">Preferences (Raw Text)</label>
-            <textarea
-              value={rawInput}
-              onChange={(e) => {
-                const nextRaw = e.target.value;
-                setRawInput(nextRaw);
-                setFormState(parseRawInputToFormState(nextRaw));
-              }}
-              disabled={isFetching || isSubmitting || isDone}
-              placeholder="PREFER_DAYS: Mon, Wed&#10;AVOID_BEFORE: 10:00&#10;AVOID_RANGES: 13:00-14:00"
-              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 bg-white text-gray-800 disabled:opacity-50 min-h-[120px]"
-            />
-            <p className="text-xs text-gray-500 mt-2">
-              Supported keywords (one per line):<br />
-              <b>PREFER_DAYS:</b> Mon, Wed<br />
-              <b>AVOID_DAYS:</b> Fri<br />
-              <b>AVOID_BEFORE:</b> 10:00<br />
-              <b>AVOID_AFTER:</b> 17:00<br />
-              <b>AVOID_RANGES:</b> 09:00-11:00, 14:00-15:00
-            </p>
-          </div>
-
-          {status.type === "success" && (
-            <div className="flex items-start gap-2.5 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <span className="text-green-500 mt-0.5 shrink-0">✓</span>
-              <p className="text-sm text-green-700">{status.message}</p>
-            </div>
-          )}
-          {status.type === "error" && (
-            <div className="flex items-start gap-2.5 p-3 bg-red-50 border border-red-200 rounded-lg">
-              <span className="text-red-500 mt-0.5 shrink-0">✕</span>
-              <p className="text-sm text-red-700">{status.message}</p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-2 px-5 pb-5">
-          <button
-            onClick={handleClose}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
-          >
-            {isDone ? "Close" : "Cancel"}
-          </button>
-          {!isDone && (
-            <button
-              onClick={handleSave}
-              disabled={isFetching || isSubmitting}
-              className="px-4 py-2 text-sm font-medium text-white bg-gray-900 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2"
-            >
-              {isSubmitting ? "Saving…" : "Save Preferences"}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+				<div className="p-5 border-t border-gray-100 flex justify-between items-center bg-gray-50">
+					<button
+						onClick={clearAllLocal}
+						className="text-xs font-bold text-gray-400 hover:text-red-500 uppercase tracking-wider flex items-center gap-1.5"
+					>
+						<Trash2 size={12} />
+						Clear Form
+					</button>
+					<div className="flex gap-2">
+						<button onClick={onClose} className="btn-outline px-4 py-2 text-xs">
+							Cancel
+						</button>
+						{!isDone && (
+							<button
+								onClick={handleSave}
+								disabled={isSubmitting}
+								className="btn-primary px-6 py-2 text-xs"
+							>
+								{isSubmitting ? "Saving..." : "Apply Changes"}
+							</button>
+						)}
+					</div>
+				</div>
+			</div>
+		</div>
+	);
 };
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const ProfessorPreferences = () => {
-  const { userId: adminId } = useAuth();
+	const [users, setUsers] = useState<User[]>([]);
+	const [loading, setLoading] = useState(true);
+	const [query, setQuery] = useState("");
+	const [target, setTarget] = useState<User | null>(null);
+	const [showUpload, setShowUpload] = useState(false);
 
-  const [users, setUsers] = useState<User[]>([]);
-  const [usersLoading, setUsersLoading] = useState(true);
-  const [usersError, setUsersError] = useState<string | null>(null);
+	const fetchUsers = async () => {
+		setLoading(true);
+		try {
+			const res = await fetch(buildApiUrl("/api/admin/all-users"), {
+				headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
+			});
+			const data: User[] = await res.json();
+			setUsers(data.filter((u) => u.role === "faculty"));
+		} catch (err) {
+			console.error(err);
+		} finally {
+			setLoading(false);
+		}
+	};
+	useEffect(() => {
+		fetchUsers();
+	}, []);
 
-  const [searchQuery, setSearchQuery] = useState("");
-  const [preferenceTarget, setPreferenceTarget] = useState<User | null>(null);
-  const [showUploadModal, setShowUploadModal] = useState(false);
+	const handleReset = async (professorId: string, name: string) => {
+		if (!window.confirm(`Reset preferences for ${name}?`)) return;
+		const id = toast.loading(`Resetting...`);
+		try {
+			const res = await fetch(buildApiUrl("/api/professor-preferences"), {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ professorId, rawInput: "" }),
+			});
+			if (!res.ok) throw new Error("Failed");
+			toast.success("Preferences cleared.", { id });
+		} catch {
+			toast.error("Error resetting.", { id });
+		}
+	};
 
-  // ── Fetch all users ───────────────────────────────────────────────────────
+	const handleResetAll = async () => {
+		if (!window.confirm("Reset ALL faculty preferences? This is permanent."))
+			return;
+		const id = toast.loading("Clearing system...");
+		try {
+			const faculty = users.filter((u) => u.role === "faculty");
+			await Promise.all(
+				faculty.map((u) =>
+					fetch(buildApiUrl("/api/professor-preferences"), {
+						method: "POST",
+						headers: { "Content-Type": "application/json" },
+						body: JSON.stringify({ professorId: u._id, rawInput: "" }),
+					}),
+				),
+			);
+			toast.success("System reset complete.", { id });
+		} catch {
+			toast.error("Partial failure.", { id });
+		}
+	};
 
-  const fetchUsers = async () => {
-    setUsersLoading(true);
-    setUsersError(null);
-    try {
-      const token = localStorage.getItem("token");
+	const filtered = users.filter(
+		(u) =>
+			u.name.toLowerCase().includes(query.toLowerCase()) ||
+			u.email.toLowerCase().includes(query.toLowerCase()),
+	);
 
-      const res = await fetch(buildApiUrl("/api/admin/all-users"), {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+	return (
+		<div className="flex min-h-[calc(100svh-73px)] flex-col bg-white">
+			<div className="px-6 py-6 border-b border-gray-100 flex justify-between items-center bg-white shadow-sm">
+				<div>
+					<h1 className="page-title">Faculty Availability</h1>
+					<p className="body-sm mt-0.5 text-gray-400">
+						Manage individual constraints or system-wide resets.
+					</p>
+				</div>
+				<div className="flex gap-2">
+					<button
+						onClick={handleResetAll}
+						className="px-4 py-2 text-xs rounded-full bg-red-600 text-white border border-red-700 hover:bg-red-700 transition-colors inline-flex items-center justify-center gap-2"
+					>
+						<Trash2 size={14} /> Reset All
+					</button>
+					<button
+						onClick={() => setShowUpload(true)}
+						className="px-4 py-2 text-xs rounded-full bg-black text-white border border-black hover:bg-gray-900 transition-colors inline-flex items-center justify-center gap-2"
+					>
+						<Upload size={14} /> Bulk Upload
+					</button>
+				</div>
+			</div>
 
-      if (!res.ok)
-        throw new Error(`Server responded with status ${res.status}`);
+			<div className="px-6 py-4 border-b border-gray-50 flex items-center gap-4 bg-gray-50/30">
+				<div className="relative flex-1 max-w-sm">
+					<Search
+						size={14}
+						className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300"
+					/>
+					<input
+						type="text"
+						placeholder="Search faculty..."
+						value={query}
+						onChange={(e) => setQuery(e.target.value)}
+						className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:border-gray-400 bg-white"
+					/>
+				</div>
+				<span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
+					{loading ? "..." : filtered.length} Members
+				</span>
+			</div>
 
-      const data: User[] = await res.json();
-      // Only keep faculty
-      setUsers(data.filter((u) => u.role === "faculty"));
-    } catch (err) {
-      console.error("Failed to fetch users:", err);
-      setUsersError(
-        err instanceof Error ? err.message : "Failed to fetch users.",
-      );
-    } finally {
-      setUsersLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  // ── Filtering ─────────────────────────────────────────────────────────────
-
-  const filteredUsers = users.filter((u) => {
-    const q = searchQuery.toLowerCase();
-    return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
-  });
-
-  // ── Render ────────────────────────────────────────────────────────────────
-
-  if (usersError) {
-    return (
-      <div className="flex min-h-[calc(100svh-73px)] flex-col bg-white">
-        <ErrorState error={usersError} onRetry={fetchUsers} />
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex min-h-[calc(100svh-73px)] flex-col overflow-y-auto bg-white">
-      {/* Page header */}
-      <div className="px-6 py-5 border-b border-gray-200">
-        <h1 className="page-title">Professor Preferences</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Manage scheduling preferences for faculty members.
-        </p>
-      </div>
-
-      {/* Toolbar */}
-      <div className="px-6 py-4 flex flex-wrap items-center gap-3 border-b border-gray-100">
-        {/* Search */}
-        <div className="relative flex-1 min-w-52 max-w-sm">
-          <Search
-            size={14}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
-          />
-          <input
-            type="text"
-            placeholder="Search by name or email…"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-gray-400 focus:border-gray-400 placeholder-gray-400"
-          />
-        </div>
-
-        {/* Count and Actions */}
-        <div className="flex items-center gap-3 ml-auto">
-          <span className="text-sm text-gray-400">
-            {usersLoading ? (
-              <span className="inline-block w-24 h-4 bg-gray-100 rounded animate-pulse" />
-            ) : (
-              `${filteredUsers.length} faculty`
-            )}
-          </span>
-          <button
-            onClick={() => setShowUploadModal(true)}
-            className="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors border border-blue-200"
-          >
-            <Upload size={16} />
-            Bulk Upload
-          </button>
-        </div>
-      </div>
-
-      {/* Table */}
-      <div className="px-6 py-4">
-        {usersLoading ? (
-          <div className="space-y-2">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-14 bg-gray-50 rounded-lg animate-pulse"
-              />
-            ))}
-          </div>
-        ) : filteredUsers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="text-4xl mb-3">👤</div>
-            <p className="text-sm font-medium text-gray-700">No faculty found</p>
-            <p className="text-xs text-gray-400 mt-1">
-              {searchQuery
-                ? "Try adjusting your search."
-                : "No faculty members are registered yet."}
-            </p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="border-b border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Name
-                  </th>
-                  <th className="border-b border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
-                    Email
-                  </th>
-                  <th className="border-b border-gray-200 px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider w-36">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.map((user, idx) => {
-                  const isSelf = user._id === adminId;
-                  return (
-                    <tr
-                      key={user._id}
-                      className={`transition-colors ${
-                        idx % 2 === 0 ? "bg-white" : "bg-gray-50"
-                      } hover:bg-gray-100`}
-                    >
-                      {/* Name */}
-                      <td className="border-b border-gray-100 px-4 py-3 text-sm font-medium text-gray-900">
-                        <span>{user.name}</span>
-                        {isSelf && (
-                          <span className="ml-2 text-xs text-gray-400 font-normal">
-                            (you)
-                          </span>
-                        )}
-                      </td>
-
-                      {/* Email */}
-                      <td className="border-b border-gray-100 px-4 py-3 text-sm text-gray-600">
-                        {user.email}
-                      </td>
-
-                      {/* Action */}
-                      <td className="border-b border-gray-100 px-4 py-3 text-right">
-                        <button
-                          onClick={() => setPreferenceTarget(user)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-colors"
-                        >
-                          Preferences
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Preference modal */}
-      {preferenceTarget && (
-        <PreferenceModal user={preferenceTarget} onClose={() => setPreferenceTarget(null)} />
-      )}
-
-      {/* Upload modal */}
-      {showUploadModal && (
-        <ProfessorPreferenceUploadModal
-          onClose={() => setShowUploadModal(false)}
-          onSuccess={() => fetchUsers()}
-        />
-      )}
-    </div>
-  );
+			<div className="p-6 flex-1 overflow-y-auto bg-gray-50/50">
+				{loading ? (
+					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+						{Array.from({ length: 6 }).map((_, i) => (
+							<div
+								key={i}
+								className="h-32 bg-white rounded-xl border border-gray-100 animate-pulse"
+							/>
+						))}
+					</div>
+				) : (
+					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 max-w-7xl mx-auto w-full">
+						{filtered.map((u) => (
+							<div
+								key={u._id}
+								className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all flex flex-col group"
+							>
+								<div className="flex justify-between items-start mb-4">
+									<div className="p-2 bg-gray-50 rounded-lg text-gray-400 group-hover:text-gray-900 group-hover:bg-gray-100 transition-colors">
+										<UserCog size={20} />
+									</div>
+									<button
+										onClick={() => handleReset(u._id, u.name)}
+										className="p-2 text-gray-300 hover:text-red-500 transition-colors"
+										title="Clear constraints"
+									>
+										<Trash2 size={16} />
+									</button>
+								</div>
+								<h3 className="font-bold text-gray-900 truncate">{u.name}</h3>
+								<div className="flex items-center gap-1.5 text-xs text-gray-400 mt-1">
+									<Mail size={10} /> {u.email}
+								</div>
+								<button
+									onClick={() => setTarget(u)}
+									className="mt-6 btn-outline w-full py-2 text-xs"
+								>
+									<Sliders size={14} /> Edit Preferences
+								</button>
+							</div>
+						))}
+					</div>
+				)}
+			</div>
+			{target && (
+				<PreferenceModal user={target} onClose={() => setTarget(null)} />
+			)}
+			{showUpload && (
+				<ProfessorPreferenceUploadModal
+					onClose={() => setShowUpload(false)}
+					onSuccess={fetchUsers}
+				/>
+			)}
+		</div>
+	);
 };
 
 export default ProfessorPreferences;

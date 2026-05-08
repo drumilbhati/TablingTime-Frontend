@@ -1,307 +1,395 @@
 import { useState } from "react";
-import { X, Upload, Download, Info } from "lucide-react";
+import {
+	X,
+	Upload,
+	Download,
+	Info,
+	CheckCircle2,
+	AlertCircle,
+	FileSpreadsheet,
+} from "lucide-react";
 import { buildApiUrl } from "../lib/api";
 
 type UploadStatus =
-  | { type: "idle" }
-  | { type: "loading" }
-  | {
-      type: "success";
-      message: string;
-      success: number;
-      failed: number;
-      errors: Array<{ row: number; reason: string }>;
-    }
-  | { type: "error"; message: string };
+	| { type: "idle" }
+	| { type: "loading" }
+	| {
+			type: "success";
+			message: string;
+			success: number;
+			failed: number;
+			errors: Array<{ row: number; reason: string }>;
+	  }
+	| { type: "error"; message: string };
 
 interface ProfessorPreferenceUploadModalProps {
-  onClose: () => void;
-  onSuccess: () => void;
+	onClose: () => void;
+	onSuccess: () => void;
 }
 
-export default function ProfessorPreferenceUploadModal({ onClose, onSuccess }: ProfessorPreferenceUploadModalProps) {
-  const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<UploadStatus>({ type: "idle" });
-  const [showFormatGuide, setShowFormatGuide] = useState(false);
-  const [formatData, setFormatData] = useState<any>(null);
-  const [formatLoading, setFormatLoading] = useState(false);
-  const [formatError, setFormatError] = useState<string | null>(null);
+interface FormatData {
+	requiredColumns?: string[];
+	exampleRawInput?: string;
+	notes?: string[];
+}
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
-    }
-  };
+export default function ProfessorPreferenceUploadModal({
+	onClose,
+	onSuccess,
+}: ProfessorPreferenceUploadModalProps) {
+	const [file, setFile] = useState<File | null>(null);
+	const [status, setStatus] = useState<UploadStatus>({ type: "idle" });
+	const [showFormatGuide, setShowFormatGuide] = useState(false);
+	const [formatData, setFormatData] = useState<FormatData | null>(null);
+	const [formatLoading, setFormatLoading] = useState(false);
+	const [formatError, setFormatError] = useState<string | null>(null);
 
-  const handleDownloadTemplate = async () => {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(buildApiUrl("/api/admin/upload/professor-preferences/template"), {
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
+	const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+		if (e.target.files && e.target.files.length > 0) {
+			setFile(e.target.files[0]);
+			setStatus({ type: "idle" });
+		}
+	};
 
-      if (!res.ok) throw new Error("Failed to download template");
+	const handleDownloadTemplate = async () => {
+		try {
+			const token = localStorage.getItem("token");
+			const res = await fetch(
+				buildApiUrl("/api/admin/upload/professor-preferences/template"),
+				{
+					headers: {
+						...(token ? { Authorization: `Bearer ${token}` } : {}),
+					},
+				},
+			);
 
-      let blob = await res.blob();
-      
-      // Temporary string hack until backend updates its template format from P00x to Prof00x
-      const text = await blob.text();
-      if (text.includes("P001") || text.includes("P002")) {
-        const updatedText = text.replace(/P001/g, "Prof001").replace(/P002/g, "Prof002");
-        blob = new Blob([updatedText], { type: blob.type });
-      }
+			if (!res.ok) throw new Error("Failed to download template");
 
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = "Professor_Preferences_Template.csv";
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
-    } catch (err) {
-      console.error(err);
-      alert("Error downloading template.");
-    }
-  };
+			let blob = await res.blob();
 
-  const handleToggleFormatGuide = async () => {
-    if (!showFormatGuide && !formatData) {
-      setFormatLoading(true);
-      setFormatError(null);
-      try {
-        const token = localStorage.getItem("token");
-        const res = await fetch(buildApiUrl("/api/admin/upload/professor-preferences/format"), {
-          headers: {
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        });
-        
-        if (!res.ok) throw new Error("Failed to fetch format guide");
-        
-        const data = await res.json();
-        
-        // Transform incoming P001-style IDs to Prof001 to align with current requirements
-        if (data.exampleRawInput) {
-          data.exampleRawInput = data.exampleRawInput
-            .replace(/P001/g, "Prof001")
-            .replace(/P002/g, "Prof002");
-        }
-        
-        setFormatData(data);
-      } catch (err) {
-        setFormatError("Could not load format guide.");
-        console.error(err);
-      } finally {
-        setFormatLoading(false);
-      }
-    }
-    setShowFormatGuide(!showFormatGuide);
-  };
+			const text = await blob.text();
+			if (text.includes("P001") || text.includes("P002")) {
+				const updatedText = text
+					.replace(/P001/g, "Prof001")
+					.replace(/P002/g, "Prof002");
+				blob = new Blob([updatedText], { type: blob.type });
+			}
 
-  const handleUpload = async () => {
-    if (!file) return;
+			const url = window.URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = "Professor_Preferences_Template.csv";
+			document.body.appendChild(a);
+			a.click();
+			window.URL.revokeObjectURL(url);
+			a.remove();
+		} catch (err) {
+			console.error(err);
+		}
+	};
 
-    setStatus({ type: "loading" });
+	const handleToggleFormatGuide = async () => {
+		if (!showFormatGuide && !formatData) {
+			setFormatLoading(true);
+			setFormatError(null);
+			try {
+				const token = localStorage.getItem("token");
+				const res = await fetch(
+					buildApiUrl("/api/admin/upload/professor-preferences/format"),
+					{
+						headers: {
+							...(token ? { Authorization: `Bearer ${token}` } : {}),
+						},
+					},
+				);
 
-    try {
-      const token = localStorage.getItem("token");
-      const formData = new FormData();
-      formData.append("file", file);
+				if (!res.ok) throw new Error("Failed to fetch format guide");
 
-      const res = await fetch(buildApiUrl("/api/admin/upload/professor-preferences"), {
-        method: "POST",
-        headers: {
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: formData,
-      });
+				const data = await res.json();
 
-      const data = await res.json();
+				if (data.exampleRawInput) {
+					data.exampleRawInput = data.exampleRawInput
+						.replace(/P001/g, "Prof001")
+						.replace(/P002/g, "Prof002");
+				}
 
-      if (!res.ok) {
-        setStatus({
-          type: "error",
-          message: data?.message ?? `Server error (${res.status})`,
-        });
-        return;
-      }
+				setFormatData(data);
+			} catch (err) {
+				setFormatError("Could not load format guide.");
+				console.error(err);
+			} finally {
+				setFormatLoading(false);
+			}
+		}
+		setShowFormatGuide(!showFormatGuide);
+	};
 
-      setStatus({
-        type: "success",
-        message: data?.message ?? `Preferences upload complete.`,
-        success: Number(data?.success ?? 0),
-        failed: Number(data?.failed ?? 0),
-        errors: Array.isArray(data?.errors) ? data.errors : [],
-      });
-      
-      if (Number(data?.failed ?? 0) === 0) {
-        setTimeout(() => {
-          onSuccess();
-          onClose();
-        }, 2000);
-      } else {
-        onSuccess(); // refresh data anyway for successful rows
-      }
-      
-    } catch (err) {
-      setStatus({
-        type: "error",
-        message: err instanceof Error ? err.message : "Unexpected error occurred.",
-      });
-    }
-  };
+	const handleUpload = async () => {
+		if (!file) return;
 
-  const isSubmitting = status.type === "loading";
+		setStatus({ type: "loading" });
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
-        {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Upload Preferences</h2>
-            <p className="text-sm text-gray-500 mt-0.5">Upload professor constraints in CSV format</p>
-          </div>
-          <button
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50"
-          >
-            <X size={20} />
-          </button>
-        </div>
+		try {
+			const token = localStorage.getItem("token");
+			const formData = new FormData();
+			formData.append("file", file);
 
-        {/* Content */}
-        <div className="p-6 overflow-y-auto">
-          {/* Actions */}
-          <div className="flex gap-3 mb-6">
-            <button
-              onClick={handleDownloadTemplate}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
-            >
-              <Download size={16} />
-              Download Template
-            </button>
-            <button
-              onClick={handleToggleFormatGuide}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              <Info size={16} />
-              {showFormatGuide ? "Hide Format Guide" : "View Format Guide"}
-            </button>
-          </div>
+			const res = await fetch(
+				buildApiUrl("/api/admin/upload/professor-preferences"),
+				{
+					method: "POST",
+					headers: {
+						...(token ? { Authorization: `Bearer ${token}` } : {}),
+					},
+					body: formData,
+				},
+			);
 
-          {/* Format Guide */}
-          {showFormatGuide && (
-            <div className="mb-6 p-4 bg-blue-50/50 border border-blue-100 rounded-lg text-sm text-blue-900">
-              <h3 className="font-semibold mb-2">CSV Format Guide</h3>
-              
-              {formatLoading ? (
-                <div className="flex items-center text-blue-600 gap-2 py-2">
-                  <div className="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
-                  Loading format details...
-                </div>
-              ) : formatError ? (
-                <p className="text-red-600">{formatError}</p>
-              ) : formatData ? (
-                <div className="space-y-3">
-                  <p>Required header row: <code className="bg-blue-100 px-1 rounded">{formatData.requiredColumns?.join(", ")}</code></p>
-                  <p><strong>Supported Keywords:</strong> {formatData.acceptedKeywords?.join(", ")}</p>
-                  <div>
-                    <p className="mb-1 text-xs text-blue-800 font-mono">Example:</p>
-                    <pre className="bg-white/60 p-2 rounded border border-blue-50 text-xs overflow-x-auto">
-{formatData.exampleRawInput}
-                    </pre>
-                  </div>
-                  {formatData.notes && formatData.notes.length > 0 && (
-                    <ul className="list-disc pl-4 text-xs mt-2 space-y-1 text-blue-800">
-                      {formatData.notes.map((note: string, idx: number) => (
-                        <li key={idx}>{note}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          )}
+			const data = await res.json();
 
-          {/* Upload Section */}
-          <div className="space-y-4">
-            <div className="space-y-1">
-              <label className="block text-sm font-medium text-gray-700">CSV File</label>
-              <input
-                type="file"
-                accept=".csv"
-                onChange={handleFileChange}
-                disabled={isSubmitting}
-                className="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 focus:outline-none disabled:opacity-50"
-              />
-            </div>
-          </div>
+			if (!res.ok) {
+				setStatus({
+					type: "error",
+					message: data?.message ?? `Server error (${res.status})`,
+				});
+				return;
+			}
 
-          {/* Status Display */}
-          <div className="mt-6">
-            {status.type === "success" && (
-              <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm font-medium text-green-800">{status.message}</p>
-                <div className="mt-2 text-sm text-green-700">
-                  <span className="font-semibold">Success:</span> {status.success} row{status.success !== 1 ? 's' : ''} <br/>
-                  <span className="font-semibold text-red-600">Failed:</span> <span className="text-red-600">{status.failed} row{status.failed !== 1 ? 's' : ''}</span>
-                </div>
-                {status.errors && status.errors.length > 0 && (
-                  <div className="mt-3">
-                    <p className="text-xs font-semibold text-red-800 mb-1">Errors:</p>
-                    <ul className="text-xs text-red-700 space-y-1 max-h-32 overflow-y-auto bg-white/50 p-2 rounded border border-red-100">
-                      {status.errors.map((err, i) => (
-                        <li key={i}>
-                          <span className="font-medium">Row {err.row}:</span> {err.reason}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </div>
-            )}
+			setStatus({
+				type: "success",
+				message: data?.message ?? `Preferences upload complete.`,
+				success: Number(data?.success ?? 0),
+				failed: Number(data?.failed ?? 0),
+				errors: Array.isArray(data?.errors) ? data.errors : [],
+			});
 
-            {status.type === "error" && (
-              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                <p className="text-sm font-medium text-red-800">{status.message}</p>
-              </div>
-            )}
-          </div>
-        </div>
+			if (Number(data?.failed ?? 0) === 0) {
+				setTimeout(() => {
+					onSuccess();
+					onClose();
+				}, 2000);
+			} else {
+				onSuccess();
+			}
+		} catch (err) {
+			setStatus({
+				type: "error",
+				message:
+					err instanceof Error ? err.message : "Unexpected error occurred.",
+			});
+		}
+	};
 
-        {/* Footer */}
-        <div className="px-6 py-4 border-t border-gray-100 bg-gray-50 flex justify-end gap-3">
-          <button
-            onClick={onClose}
-            disabled={isSubmitting}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
-          >
-            {status.type === "success" && status.failed === 0 ? "Close" : "Cancel"}
-          </button>
-          <button
-            onClick={handleUpload}
-            disabled={!file || isSubmitting}
-            className="flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:bg-blue-400 min-w-28"
-          >
-            {isSubmitting ? (
-              <>
-                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span>Uploading...</span>
-              </>
-            ) : (
-              <>
-                <Upload size={16} />
-                <span>Upload</span>
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+	const isSubmitting = status.type === "loading";
+
+	return (
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+			<div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+				{/* Header */}
+				<div className="px-8 py-8 border-b border-gray-100 flex items-center justify-between bg-slate-50/30">
+					<div>
+						<h2 className="text-2xl font-black text-gray-900 tracking-tight">
+							Bulk Import
+						</h2>
+						<p className="body-sm mt-1 font-medium text-slate-400">
+							Synchronize professor constraints via CSV.
+						</p>
+					</div>
+					<button
+						onClick={onClose}
+						disabled={isSubmitting}
+						className="p-2 text-gray-400 hover:text-gray-900 transition-colors p-1 hover:bg-black/5 rounded-full active:scale-90"
+					>
+						<X size={24} />
+					</button>
+				</div>
+
+				{/* Content */}
+				<div className="p-8 overflow-y-auto no-scrollbar">
+					{/* Actions */}
+					<div className="flex gap-4 mb-8">
+						<button
+							onClick={handleDownloadTemplate}
+							className="flex-1 flex items-center justify-center gap-2 px-6 py-3 text-xs font-black uppercase tracking-widest text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded-2xl transition-all border border-indigo-100/50"
+						>
+							<Download size={16} />
+							Get Template
+						</button>
+						<button
+							onClick={handleToggleFormatGuide}
+							className="flex-1 flex items-center justify-center gap-2 px-6 py-3 text-xs font-black uppercase tracking-widest text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all border border-slate-200/50"
+						>
+							<Info size={16} />
+							{showFormatGuide ? "Hide Guide" : "Format Guide"}
+						</button>
+					</div>
+
+					{/* Format Guide */}
+					{showFormatGuide && (
+						<div className="mb-8 p-6 bg-indigo-50/50 border border-indigo-100 rounded-[1.5rem] animate-in slide-in-from-top-2 duration-300">
+							<h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-400 mb-4">
+								CSV Protocol Specifications
+							</h3>
+
+							{formatLoading ? (
+								<div className="flex items-center text-indigo-600 gap-2 py-4">
+									<div className="w-4 h-4 border-2 border-indigo-600/30 border-t-indigo-600 rounded-full animate-spin" />
+									<span className="text-xs font-bold">Fetching Schema...</span>
+								</div>
+							) : formatError ? (
+								<p className="text-sm font-bold text-rose-500">{formatError}</p>
+							) : formatData ? (
+								<div className="space-y-4">
+									<div>
+										<div className="label-caps opacity-60 mb-2">
+											Required Fields
+										</div>
+										<code className="text-xs font-mono bg-white px-2 py-1 rounded border border-indigo-100 text-indigo-700">
+											{formatData.requiredColumns?.join(", ")}
+										</code>
+									</div>
+									<div>
+										<div className="label-caps opacity-60 mb-2">
+											Sample Payload
+										</div>
+										<pre className="bg-gray-950 p-4 rounded-xl text-[10px] font-mono text-indigo-300 overflow-x-auto leading-relaxed border border-white/5">
+											{formatData.exampleRawInput}
+										</pre>
+									</div>
+									{formatData.notes && (
+										<div className="pt-2">
+											<ul className="space-y-1.5">
+												{formatData.notes.map((note: string, idx: number) => (
+													<li
+														key={idx}
+														className="flex gap-2 text-xs font-medium text-indigo-900/60 leading-relaxed"
+													>
+														<span className="text-indigo-400 font-black">
+															•
+														</span>
+														{note}
+													</li>
+												))}
+											</ul>
+										</div>
+									)}
+								</div>
+							) : null}
+						</div>
+					)}
+
+					{/* Upload Section */}
+					<div className="space-y-6">
+						<div className="relative group">
+							<input
+								type="file"
+								accept=".csv"
+								id="bulk-preference-input"
+								onChange={handleFileChange}
+								disabled={isSubmitting}
+								className="hidden"
+							/>
+							<label
+								htmlFor="bulk-preference-input"
+								className={`flex flex-col items-center justify-center py-10 border-2 border-dashed rounded-[2rem] cursor-pointer transition-all ${
+									file
+										? "border-indigo-400 bg-indigo-50/20"
+										: "border-slate-200 hover:border-slate-300 bg-slate-50/50 hover:bg-slate-50"
+								}`}
+							>
+								<div
+									className={`p-4 rounded-2xl mb-4 transition-all ${file ? "bg-indigo-500 text-white shadow-lg shadow-indigo-100" : "bg-white text-slate-400 shadow-sm"}`}
+								>
+									<FileSpreadsheet size={32} />
+								</div>
+								<span
+									className={`text-sm font-black uppercase tracking-widest ${file ? "text-indigo-600" : "text-slate-400"}`}
+								>
+									{file ? file.name : "Select Import File"}
+								</span>
+								{!file && (
+									<span className="body-xs mt-2 font-bold text-slate-300 italic">
+										Click to browse your workstation
+									</span>
+								)}
+							</label>
+						</div>
+					</div>
+
+					{/* Status Display */}
+					<div className="mt-8">
+						{status.type === "success" && (
+							<div className="p-6 bg-emerald-50 border border-emerald-100 rounded-3xl animate-in zoom-in duration-300">
+								<div className="flex items-center gap-3 mb-4">
+									<CheckCircle2 className="text-emerald-500" size={24} />
+									<p className="text-sm font-black text-emerald-950 uppercase tracking-tight">
+										{status.message}
+									</p>
+								</div>
+								<div className="flex gap-6 text-[10px] font-black uppercase tracking-widest px-1">
+									<span className="text-emerald-600">
+										<span className="opacity-40 mr-1">OK:</span>{" "}
+										{status.success} Rows
+									</span>
+									<span className="text-rose-600">
+										<span className="opacity-40 mr-1">FAIL:</span>{" "}
+										{status.failed} Rows
+									</span>
+								</div>
+								{status.errors && status.errors.length > 0 && (
+									<div className="mt-4 pt-4 border-t border-emerald-100/50 max-h-40 overflow-y-auto no-scrollbar">
+										<ul className="space-y-2">
+											{status.errors.map((err, i) => (
+												<li
+													key={i}
+													className="text-[11px] font-medium text-emerald-900 bg-white/40 p-2 rounded-lg leading-snug"
+												>
+													<span className="font-black opacity-30 mr-2">
+														ROW {err.row}
+													</span>
+													{err.reason}
+												</li>
+											))}
+										</ul>
+									</div>
+								)}
+							</div>
+						)}
+
+						{status.type === "error" && (
+							<div className="p-6 bg-rose-50 border border-rose-100 rounded-3xl animate-in slide-in-from-top-2">
+								<div className="flex items-center gap-3">
+									<AlertCircle size={20} className="text-rose-500" />
+									<p className="text-sm font-bold text-rose-800">
+										{status.message}
+									</p>
+								</div>
+							</div>
+						)}
+					</div>
+				</div>
+
+				{/* Footer */}
+				<div className="px-8 py-6 border-t border-gray-100 bg-slate-50/50 flex justify-end">
+					<button
+						onClick={handleUpload}
+						disabled={!file || isSubmitting}
+						className="w-full sm:w-auto px-12 py-3.5 text-xs font-black uppercase tracking-[0.2em] text-white bg-gray-950 hover:bg-gray-800 rounded-2xl transition-all shadow-xl shadow-gray-200 disabled:opacity-20 active:scale-95 flex items-center justify-center gap-2"
+					>
+						{isSubmitting ? (
+							<>
+								<div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+								<span>Processing...</span>
+							</>
+						) : (
+							<>
+								<Upload size={16} />
+								<span>Commit Import</span>
+							</>
+						)}
+					</button>
+				</div>
+			</div>
+		</div>
+	);
 }

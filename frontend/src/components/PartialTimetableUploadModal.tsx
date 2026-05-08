@@ -123,7 +123,7 @@ export default function PartialTimetableUploadModal({ onClose, onSuccess }: Part
                   if (!f) return setScheduleFile(null);
                   try {
                     setScheduleFile(await snapshotFile(f));
-                  } catch (err) {
+                  } catch {
                     setScheduleFile(null);
                     setStatus({ type: "error", message: "Failed to read file" });
                   }
@@ -143,7 +143,7 @@ export default function PartialTimetableUploadModal({ onClose, onSuccess }: Part
                   if (!f) return setStudentFile(null);
                   try {
                     setStudentFile(await snapshotFile(f));
-                  } catch (err) {
+                  } catch {
                     setStudentFile(null);
                     setStatus({ type: "error", message: "Failed to read file" });
                   }

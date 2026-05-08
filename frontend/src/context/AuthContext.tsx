@@ -40,7 +40,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!storedUser) return null;
       const user = JSON.parse(storedUser);
       return user.name || null;
-    } catch (e) {
+    } catch {
       return null;
     }
   });
@@ -51,7 +51,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!storedUser) return null;
       const user = JSON.parse(storedUser);
       return user._id || null;
-    } catch (e) {
+    } catch {
       return null;
     }
   });

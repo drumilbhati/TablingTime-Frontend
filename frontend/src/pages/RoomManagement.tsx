@@ -205,21 +205,6 @@ const RoomManagement = () => {
 		}
 	};
 
-	const handleRemoveSchedule = async (entry: RoomSchedulePayload) => {
-		if (!selectedRoom) return;
-		try {
-			const updated = await schedulingService.removeRoomSchedule(
-				selectedRoom._id,
-				entry,
-			);
-			toast.success("Schedule entry removed.");
-			setSelectedRoom(updated);
-			await loadRooms();
-		} catch (err) {
-			toast.error(err instanceof Error ? err.message : "Failed to remove schedule");
-		}
-	};
-
 	const handleClearSchedule = async () => {
 		if (!selectedRoom) return;
 		if (!window.confirm("Clear all schedules for this room?")) return;

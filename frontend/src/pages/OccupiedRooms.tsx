@@ -250,7 +250,7 @@ const OccupiedRooms = () => {
 										<tbody>
 											{timeslots.map((timeslot, idx) => (
 												<tr
-													key={`${timeslot.day}|${timeslot.startTime}|${timeslot.endTime}`}
+													key={`${timeslot.startTime}|${timeslot.endTime}`}
 													className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
 												>
 													<td className="border-b border-r border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 bg-inherit whitespace-nowrap sticky left-0 z-10">

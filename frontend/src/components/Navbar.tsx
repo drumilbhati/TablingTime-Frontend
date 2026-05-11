@@ -78,12 +78,6 @@ const Navbar = () => {
 								Preferences
 							</button>
 							<button
-								onClick={() => navigate("/rooms")}
-								className={navButtonClass("/rooms")}
-							>
-								Rooms
-							</button>
-							<button
 								onClick={() => navigate("/courses-by-school")}
 								className={navButtonClass("/courses-by-school")}
 							>

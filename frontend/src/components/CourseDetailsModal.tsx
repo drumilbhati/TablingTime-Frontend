@@ -1,7 +1,7 @@
 import { type Course } from "../context/CoursesContext";
 import { getCourseCredit } from "../lib/courseUtils";
 import { getCourseColors } from "../lib/courseColors";
-import { X, User, FileText, Calendar, Clock, MapPin } from "lucide-react";
+import { X, User, FileText, Calendar, Clock, MapPin, Pencil } from "lucide-react";
 
 const DAY_FULL: Record<string, string> = {
 	Mon: "Monday",
@@ -44,6 +44,7 @@ export interface CourseDetailsModalProps {
 	endTime: string;
 	isSelected: boolean;
 	onClose: () => void;
+	onEditRoom?: () => void;
 }
 
 export const CourseDetailsModal = ({
@@ -53,6 +54,7 @@ export const CourseDetailsModal = ({
 	endTime,
 	isSelected,
 	onClose,
+	onEditRoom,
 }: CourseDetailsModalProps) => {
 	const colors = getCourseColors(course);
 
@@ -137,9 +139,20 @@ export const CourseDetailsModal = ({
 							</div>
 						</div>
 						<div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
-							<div className="flex items-center gap-1.5 label-caps mb-2 opacity-60">
-								<MapPin size={10} />
-								Room
+							<div className="flex items-center justify-between label-caps mb-2 opacity-60">
+								<span className="flex items-center gap-1.5">
+									<MapPin size={10} />
+									Room
+								</span>
+								{onEditRoom && (
+									<button
+										onClick={onEditRoom}
+										className="text-gray-400 hover:text-gray-900 transition-colors"
+										title="Edit room"
+									>
+										<Pencil size={12} />
+									</button>
+								)}
 							</div>
 							<div className="text-sm font-black text-gray-900 truncate">
 								{formatRooms(course.room) || "—"}

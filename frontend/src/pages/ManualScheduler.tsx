@@ -551,6 +551,27 @@ const ManualScheduler = () => {
 		setActiveCourseDetails({ course, day, startTime, endTime });
 	};
 
+	const handleRoomEditClick = (
+		course: Course,
+		day: string,
+		startTime: string,
+		endTime: string,
+	) => {
+		const slot = getSlotForDayTime(day, startTime, endTime);
+		if (!slot) return;
+		setSelectedSlot(slot);
+		setSelectedDropDay(day);
+		setRoomSelectorCourse(course);
+		setRoomSelectorIsReplace(true);
+		setRoomSelectorSource({
+			day,
+			startTime,
+			endTime,
+			roomNumber: getRoomNumberForSlot(course, day, startTime, endTime),
+		});
+		setShowRoomSelector(true);
+	};
+
 	const handleDragStart = (course: Course) => {
 		isDragging.current = true;
 		setDraggedCourse(course);
@@ -1072,6 +1093,15 @@ const ManualScheduler = () => {
 					endTime={activeCourseDetails.endTime}
 					isSelected={false}
 					onClose={() => setActiveCourseDetails(null)}
+					onEditRoom={() => {
+						handleRoomEditClick(
+							activeCourseDetails.course,
+							activeCourseDetails.day,
+							activeCourseDetails.startTime,
+							activeCourseDetails.endTime,
+						);
+						setActiveCourseDetails(null);
+					}}
 				/>
 			)}
 		</div>

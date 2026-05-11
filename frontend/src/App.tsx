@@ -9,6 +9,8 @@ import VacantRooms from "./pages/VacantRooms.tsx";
 import EnrolmentPage from "./pages/EnrolmentPage.tsx";
 import ProfessorPreferences from "./pages/ProfessorPreferences.tsx";
 import ManualScheduler from "./pages/ManualScheduler.tsx";
+import RoomManagement from "./pages/RoomManagement.tsx";
+import CoursesBySchool from "./pages/CoursesBySchool.tsx";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "./context/AuthContext.tsx";
 import { CoursesProvider } from "./context/CoursesContext.tsx";
@@ -76,6 +78,22 @@ function App() {
 									element={
 										<AdminRoute>
 											<ProfessorPreferences />
+										</AdminRoute>
+									}
+								/>
+								<Route
+									path="/rooms"
+									element={
+										<AdminRoute>
+											<RoomManagement />
+										</AdminRoute>
+									}
+								/>
+								<Route
+									path="/courses-by-school"
+									element={
+										<AdminRoute>
+											<CoursesBySchool />
 										</AdminRoute>
 									}
 								/>

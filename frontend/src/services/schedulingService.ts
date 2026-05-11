@@ -44,10 +44,31 @@ export interface Room {
 	capacity: number;
 	type?: string;
 	building?: string;
+	isAvailable?: boolean;
 	schedule: Array<{
 		timeSlot: string;
 		courseId: string;
 	}>;
+}
+
+export interface RoomUpsertPayload {
+	roomNumber: string;
+	building?: string;
+	type: string;
+	capacity: number;
+	isAvailable?: boolean;
+}
+
+export interface RoomUpdatePayload {
+	building?: string;
+	type?: string;
+	capacity?: number;
+	isAvailable?: boolean;
+}
+
+export interface RoomSchedulePayload {
+	timeSlot: string;
+	courseId?: string;
 }
 
 export interface Slot {
@@ -335,6 +356,168 @@ class SchedulingService {
 		}
 
 		return response.json();
+	}
+
+	async searchRoom(roomNumber: string, building?: string): Promise<Room> {
+		const token = localStorage.getItem("token");
+		const params = new URLSearchParams({ roomNumber });
+		if (building) params.set("building", building);
+
+		const response = await fetch(
+			buildApiUrl(`/api/rooms/search?${params.toString()}`),
+			{
+				headers: {
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
+				},
+			},
+		);
+
+		if (!response.ok) {
+			throw new Error(`Failed to search room: ${response.status}`);
+		}
+
+		return response.json();
+	}
+
+	async getRoomById(roomId: string): Promise<Room> {
+		const token = localStorage.getItem("token");
+		const response = await fetch(buildApiUrl(`/api/rooms/${roomId}`), {
+			headers: {
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+		});
+
+		if (!response.ok) {
+			throw new Error(`Failed to fetch room: ${response.status}`);
+		}
+
+		return response.json();
+	}
+
+	async createRoom(payload: RoomUpsertPayload): Promise<Room> {
+		const token = localStorage.getItem("token");
+		const response = await fetch(buildApiUrl("/api/rooms"), {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+			body: JSON.stringify(payload),
+		});
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			throw new Error(data?.message ?? `Failed to create room: ${response.status}`);
+		}
+
+		const data = await response.json();
+		return data.room ?? data;
+	}
+
+	async updateRoom(roomId: string, payload: RoomUpdatePayload): Promise<Room> {
+		const token = localStorage.getItem("token");
+		const response = await fetch(buildApiUrl(`/api/rooms/${roomId}`), {
+			method: "PUT",
+			headers: {
+				"Content-Type": "application/json",
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+			body: JSON.stringify(payload),
+		});
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			throw new Error(data?.message ?? `Failed to update room: ${response.status}`);
+		}
+
+		const data = await response.json();
+		return data.room ?? data;
+	}
+
+	async deleteRoom(roomId: string): Promise<void> {
+		const token = localStorage.getItem("token");
+		const response = await fetch(buildApiUrl(`/api/rooms/${roomId}`), {
+			method: "DELETE",
+			headers: {
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+		});
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			throw new Error(data?.message ?? `Failed to delete room: ${response.status}`);
+		}
+	}
+
+	async addRoomSchedule(
+		roomId: string,
+		payload: Required<Pick<RoomSchedulePayload, "timeSlot" | "courseId">>,
+	): Promise<Room> {
+		const token = localStorage.getItem("token");
+		const response = await fetch(buildApiUrl(`/api/rooms/${roomId}/schedule`), {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+			body: JSON.stringify(payload),
+		});
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			throw new Error(data?.message ?? `Failed to add schedule: ${response.status}`);
+		}
+
+		const data = await response.json();
+		return data.room ?? data;
+	}
+
+	async removeRoomSchedule(
+		roomId: string,
+		payload: RoomSchedulePayload,
+	): Promise<Room> {
+		const token = localStorage.getItem("token");
+		const response = await fetch(buildApiUrl(`/api/rooms/${roomId}/schedule`), {
+			method: "DELETE",
+			headers: {
+				"Content-Type": "application/json",
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+			body: JSON.stringify(payload),
+		});
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			throw new Error(
+				data?.message ?? `Failed to remove schedule: ${response.status}`,
+			);
+		}
+
+		const data = await response.json();
+		return data.room ?? data;
+	}
+
+	async clearRoomSchedule(roomId: string): Promise<Room> {
+		const token = localStorage.getItem("token");
+		const response = await fetch(
+			buildApiUrl(`/api/rooms/${roomId}/schedule/clear`),
+			{
+				method: "DELETE",
+				headers: {
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
+				},
+			},
+		);
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			throw new Error(
+				data?.message ?? `Failed to clear schedule: ${response.status}`,
+			);
+		}
+
+		const data = await response.json();
+		return data.room ?? data;
 	}
 
 	async getAllSlots(): Promise<Slot[]> {

@@ -78,6 +78,18 @@ const Navbar = () => {
 								Preferences
 							</button>
 							<button
+								onClick={() => navigate("/rooms")}
+								className={navButtonClass("/rooms")}
+							>
+								Rooms
+							</button>
+							<button
+								onClick={() => navigate("/courses-by-school")}
+								className={navButtonClass("/courses-by-school")}
+							>
+								Courses
+							</button>
+							<button
 								onClick={() => navigate("/scheduler")}
 								className={`${navButtonClass("/scheduler")} relative flex items-center gap-2`}
 							>

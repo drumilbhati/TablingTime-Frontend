@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
 	X,
 	Search,
@@ -33,6 +33,12 @@ type PreferenceFormState = {
 	avoidBefore: string;
 	avoidAfter: string;
 	avoidRanges: Array<{ start: string; end: string }>;
+};
+
+type StrictStatusEntry = {
+	professorId: string;
+	isStrict: boolean;
+	status: string;
 };
 
 const DAY_OPTIONS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -123,9 +129,11 @@ const parseRawInputToFormState = (raw: string): PreferenceFormState => {
 const PreferenceModal = ({
 	user,
 	onClose,
+	onStrictChange,
 }: {
 	user: User;
 	onClose: () => void;
+	onStrictChange: (professorId: string, isStrict: boolean) => void;
 }) => {
 	const [rawInput, setRawInput] = useState("");
 	const [formState, setFormState] = useState<PreferenceFormState>(
@@ -133,6 +141,11 @@ const PreferenceModal = ({
 	);
 	const [status, setStatus] = useState<PreferenceStatus>({ type: "idle" });
 	const [isFetching, setIsFetching] = useState(true);
+	const [strictStatus, setStrictStatus] = useState<StrictStatusEntry | null>(
+		null,
+	);
+	const [strictLoading, setStrictLoading] = useState(true);
+	const [strictError, setStrictError] = useState<string | null>(null);
 
 	const handleFormFieldChange = (
 		updater: (state: PreferenceFormState) => PreferenceFormState,
@@ -174,6 +187,40 @@ const PreferenceModal = ({
 			.finally(() => setIsFetching(false));
 	}, [user._id]);
 
+	useEffect(() => {
+		const loadStrictStatus = async () => {
+			setStrictLoading(true);
+			setStrictError(null);
+			try {
+				const token = localStorage.getItem("token");
+				const res = await fetch(
+					buildApiUrl(
+						`/api/professor-preferences/${user._id}/strict-status`,
+					),
+					{
+						headers: {
+							...(token ? { Authorization: `Bearer ${token}` } : {}),
+						},
+					},
+				);
+				if (!res.ok) throw new Error("Failed to fetch strict status");
+				const data = (await res.json()) as StrictStatusEntry;
+				setStrictStatus(data);
+				onStrictChange(user._id, data.isStrict);
+			} catch (err) {
+				setStrictError(
+					err instanceof Error
+						? err.message
+						: "Failed to fetch strict status",
+				);
+			} finally {
+				setStrictLoading(false);
+			}
+		};
+
+		loadStrictStatus();
+	}, [user._id, onStrictChange]);
+
 	const handleSave = async () => {
 		setStatus({ type: "loading" });
 		try {
@@ -187,6 +234,40 @@ const PreferenceModal = ({
 			setTimeout(onClose, 1000);
 		} catch {
 			setStatus({ type: "error", message: "Failed to save." });
+		}
+	};
+
+	const handleToggleStrict = async () => {
+		const nextValue = !(strictStatus?.isStrict ?? false);
+		try {
+			const token = localStorage.getItem("token");
+			const res = await fetch(
+				buildApiUrl(
+					`/api/professor-preferences/${user._id}/toggle-strict`,
+				),
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						...(token ? { Authorization: `Bearer ${token}` } : {}),
+					},
+					body: JSON.stringify({ isStrict: nextValue }),
+				},
+			);
+			if (!res.ok) throw new Error("Failed to update strict mode");
+			const data = (await res.json()) as StrictStatusEntry;
+			setStrictStatus({
+				professorId: user._id,
+				isStrict: data.isStrict,
+				status: data.status ?? (data.isStrict ? "STRICT" : "NON-STRICT"),
+			});
+			onStrictChange(user._id, data.isStrict);
+		} catch (err) {
+			setStrictError(
+				err instanceof Error
+					? err.message
+					: "Failed to update strict mode",
+			);
 		}
 	};
 
@@ -218,6 +299,29 @@ const PreferenceModal = ({
 				</div>
 
 				<div className="flex-1 overflow-y-auto p-6 space-y-6">
+					<div className="flex items-center justify-between bg-gray-50 border border-gray-100 rounded-lg p-3">
+						<div>
+							<div className="label-caps">Preference Mode</div>
+							<p className="text-xs text-gray-400">
+								{strictLoading
+									? "Checking strictness..."
+									: strictStatus?.status || "UNKNOWN"}
+							</p>
+						</div>
+						<button
+							onClick={handleToggleStrict}
+							disabled={strictLoading}
+							className="btn-outline px-3 py-1.5 text-xs"
+						>
+							{strictStatus?.isStrict ? "Set Non-Strict" : "Set Strict"}
+						</button>
+					</div>
+					{strictError && (
+						<div className="p-3 bg-red-50 text-red-600 rounded-lg text-xs font-bold">
+							{strictError}
+						</div>
+					)}
+
 					<div className="grid grid-cols-2 gap-4">
 						<div className="space-y-2">
 							<label className="label-caps">Preferred Days</label>
@@ -396,6 +500,47 @@ const ProfessorPreferences = () => {
 	const [query, setQuery] = useState("");
 	const [target, setTarget] = useState<User | null>(null);
 	const [showUpload, setShowUpload] = useState(false);
+	const [strictMap, setStrictMap] = useState<
+		Record<string, { isStrict: boolean; status: string }>
+	>({});
+
+	const updateStrictMap = useCallback(
+		(professorId: string, isStrict: boolean) => {
+			setStrictMap((prev) => ({
+				...prev,
+				[professorId]: {
+					isStrict,
+					status: isStrict ? "STRICT" : "NON-STRICT",
+				},
+			}));
+		},
+		[],
+	);
+
+	const loadStrictStatuses = async () => {
+		try {
+			const token = localStorage.getItem("token");
+			const res = await fetch(buildApiUrl("/api/professor-preferences"), {
+				headers: {
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
+				},
+			});
+			if (!res.ok) throw new Error("Failed to fetch strict statuses");
+			const data = await res.json();
+			const nextMap: Record<string, { isStrict: boolean; status: string }> = {};
+			if (Array.isArray(data?.professors)) {
+				data.professors.forEach((entry: StrictStatusEntry) => {
+					nextMap[entry.professorId] = {
+						isStrict: Boolean(entry.isStrict),
+						status: entry.status ?? "UNKNOWN",
+					};
+				});
+			}
+			setStrictMap(nextMap);
+		} catch (err) {
+			console.error(err);
+		}
+	};
 
 	const fetchUsers = async () => {
 		setLoading(true);
@@ -405,6 +550,7 @@ const ProfessorPreferences = () => {
 			});
 			const data: User[] = await res.json();
 			setUsers(data.filter((u) => u.role === "faculty"));
+			await loadStrictStatuses();
 		} catch (err) {
 			console.error(err);
 		} finally {
@@ -535,6 +681,17 @@ const ProfessorPreferences = () => {
 								<div className="flex items-center gap-1.5 text-xs text-gray-400 mt-1">
 									<Mail size={10} /> {u.email}
 								</div>
+								<div className="mt-2">
+									<span
+										className={`inline-flex px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+											strictMap[u._id]?.isStrict
+												? "bg-rose-50 text-rose-700"
+												: "bg-emerald-50 text-emerald-700"
+										}`}
+									>
+										{strictMap[u._id]?.status ?? "UNKNOWN"}
+									</span>
+								</div>
 								<button
 									onClick={() => setTarget(u)}
 									className="mt-6 btn-outline w-full py-2 text-xs"
@@ -547,7 +704,11 @@ const ProfessorPreferences = () => {
 				)}
 			</div>
 			{target && (
-				<PreferenceModal user={target} onClose={() => setTarget(null)} />
+				<PreferenceModal
+					user={target}
+					onClose={() => setTarget(null)}
+					onStrictChange={updateStrictMap}
+				/>
 			)}
 			{showUpload && (
 				<ProfessorPreferenceUploadModal

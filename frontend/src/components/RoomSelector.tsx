@@ -16,6 +16,26 @@ interface RoomSelectorProps {
   sourceSlot?: { day: string; startTime: string; endTime: string } | null;
 }
 
+const DAY_FULL: Record<string, string> = {
+  Mon: "Monday",
+  Tue: "Tuesday",
+  Wed: "Wednesday",
+  Thu: "Thursday",
+  Fri: "Friday",
+  Sat: "Saturday",
+  Monday: "Monday",
+  Tuesday: "Tuesday",
+  Wednesday: "Wednesday",
+  Thursday: "Thursday",
+  Friday: "Friday",
+  Saturday: "Saturday",
+};
+
+const normalizeDayLabel = (day: string) => {
+  const baseDay = day.replace(/\d+$/, "");
+  return DAY_FULL[baseDay] ?? baseDay;
+};
+
 // Utility to generate slot codes from human-readable times (e.g. "08:00")
 const getSlotCodes = (day: string, startTime: string, endTime: string): string[] => {
   const dayPrefixes: Record<string, string> = {
@@ -87,7 +107,7 @@ const RoomSelector = ({
         // If slot.timings contains codes like "M1", use them. 
         // If it contains times like "08:00-09:30", we need to convert.
         let codes: string[] = [];
-        const firstDay = slot.days[0];
+        const firstDay = slot.days[0] ? normalizeDayLabel(slot.days[0]) : undefined;
         
         if (slot.timings.some(t => /^[A-Z][a-z]?\d+$/.test(t))) {
           codes = slot.timings;
@@ -165,12 +185,12 @@ const RoomSelector = ({
             <p className="text-sm text-gray-600 mt-1">
               {isReplace ? (
                 <>
-                  Move <strong>{course.courseId}</strong> to {slot.days.join(", ")}{" "}
+                  Move <strong>{course.courseId}</strong> to {slot.days.map(normalizeDayLabel).join(", ")}{" "}
                   from {slot.startTime} to {slot.endTime}
                 </>
               ) : (
                 <>
-                  Choose a room for {course.courseId} on {slot.days.join(", ")} from{" "}
+                  Choose a room for {course.courseId} on {slot.days.map(normalizeDayLabel).join(", ")} from{" "}
                   {slot.startTime} to {slot.endTime}
                 </>
               )}
@@ -205,7 +225,7 @@ const RoomSelector = ({
             </div>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Day</div>
-              <div className="text-sm font-bold text-gray-900">{slot.days.join(", ")}</div>
+              <div className="text-sm font-bold text-gray-900">{slot.days.map(normalizeDayLabel).join(", ")}</div>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Time</div>

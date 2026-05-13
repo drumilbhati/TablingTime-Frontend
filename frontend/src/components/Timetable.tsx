@@ -220,14 +220,12 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 			{!loading && timeslots.length > 0 && (
 				<div className="flex items-center justify-between mt-4 px-1">
 					<div className="flex items-center gap-6">
-						<div className="flex items-center gap-2">
-							<div className="w-1 h-3 bg-gray-200 rounded-full" />
-							<span className="label-caps">Prefix-based Colors</span>
-						</div>
+										<div className="flex items-center gap-2">
+													<div className="w-1 h-3 bg-gray-200 rounded-full" />
+													{/* prefix label intentionally removed */}
+												</div>
 					</div>
-					<span className="body-sm text-gray-300 font-medium">
-						TABLINGTIME SCHEDULER v1.0
-					</span>
+					{/* watermark removed per design request */}
 				</div>
 			)}
 

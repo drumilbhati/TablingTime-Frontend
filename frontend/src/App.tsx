@@ -1,5 +1,6 @@
 import "./App.css";
 import Navbar from "./components/Navbar.tsx";
+import Footer from "./components/Footer";
 import { Route, Routes, Navigate } from "react-router-dom";
 import Login from "./pages/Login.tsx";
 import TimetablePage from "./pages/TimetablePage.tsx";
@@ -98,6 +99,7 @@ function App() {
 								/>
 								<Route path="/login" element={<Login />} />
 							</Routes>
+							<Footer />
 						</div>
 					</CoursesProvider>
 				</SchedulingReportProvider>

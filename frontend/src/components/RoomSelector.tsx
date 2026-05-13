@@ -183,17 +183,17 @@ const RoomSelector = ({
               {isReplace ? "Move Course" : "Select a Room"}
             </h2>
             <p className="text-sm text-gray-600 mt-1">
-              {isReplace ? (
-                <>
-                  Move <strong>{course.courseId}</strong> to {slot.days.map(normalizeDayLabel).join(", ")}{" "}
-                  from {slot.startTime} to {slot.endTime}
-                </>
-              ) : (
-                <>
-                  Choose a room for {course.courseId} on {slot.days.map(normalizeDayLabel).join(", ")} from{" "}
-                  {slot.startTime} to {slot.endTime}
-                </>
-              )}
+                {isReplace ? (
+                  <>
+                    Move <strong>{course.courseName || course.courseCode || course.courseId}</strong> to {slot.days.map(normalizeDayLabel).join(", ")} 
+                    from {slot.startTime} to {slot.endTime}
+                  </>
+                ) : (
+                  <>
+                    Choose a room for {course.courseName || course.courseCode || course.courseId} on {slot.days.map(normalizeDayLabel).join(", ")} from{" "}
+                    {slot.startTime} to {slot.endTime}
+                  </>
+                )}
             </p>
           </div>
           <button
@@ -217,7 +217,7 @@ const RoomSelector = ({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Course</div>
-              <div className="text-sm font-bold text-gray-900 truncate">{course.courseId}</div>
+              <div className="text-sm font-bold text-gray-900 truncate">{course.courseName || course.courseCode || course.courseId}</div>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Students</div>

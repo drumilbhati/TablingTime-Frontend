@@ -13,31 +13,31 @@ const DEVELOPERS: { name: string; url: string }[] = [
 export default function Footer() {
   return (
     <footer className="w-full bg-black text-white border-t border-gray-800">
-      <div className="max-w-6xl mx-auto px-6 py-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-sm">
+      <div className="max-w-6xl mx-auto px-6 py-3.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-sm">
         <div className="md:max-w-2xl">
-          <div className="text-white font-semibold text-sm">Transforming complex university scheduling into smarter, seamless academic automation.</div>
-          <div className="text-gray-400 text-xs mt-2">Designed and developed by</div>
+          <div className="text-white font-medium text-sm leading-snug">Transforming complex university scheduling into smarter, seamless academic automation.</div>
+          <div className="text-gray-400 text-[11px] mt-1.5">Designed and developed by</div>
         </div>
 
-        <ul className="flex flex-wrap gap-3 items-center">
+        <ul className="flex flex-wrap gap-x-4 gap-y-2 items-center">
           {DEVELOPERS.map((d, idx) => (
             <li key={idx} className="list-none">
               <a
                 href={d.url}
                 target="_blank"
                 rel="noreferrer noopener"
-                className="inline-flex items-center gap-2 text-gray-200 hover:text-white transition-colors"
+                className="inline-flex items-center gap-1.5 text-gray-300 hover:text-white transition-colors"
               >
-                <Github size={14} />
-                <span className="text-sm">{d.name}</span>
+                <Github size={13} />
+                <span className="text-[13px]">{d.name}</span>
               </a>
             </li>
           ))}
         </ul>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 pb-4 text-xs text-gray-600">
-        <div className="hidden md:block">© {new Date().getFullYear()} TablingTime — Built with focus on reliability, clarity and automation.</div>
+      <div className="max-w-6xl mx-auto px-6 pb-3 text-[11px] text-gray-600">
+        <div className="hidden md:block">© {new Date().getFullYear()} TablingTime</div>
       </div>
     </footer>
   );

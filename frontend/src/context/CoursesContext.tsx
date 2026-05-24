@@ -19,6 +19,10 @@ export interface Course {
 	courseId: string;
 	courseCode: string;
 	courseName: string;
+	section?: string;
+	sectionId?: string;
+	courseSectionId?: string;
+	displayCourseId?: string;
 	Faculty: string;
 	Credits?: string | number;
 	credits?: string | number;
@@ -160,6 +164,10 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
 					courseId,
 					courseCode,
 					courseName,
+					section: String(baseCourse.section ?? ""),
+					sectionId: String(baseCourse.sectionId ?? ""),
+					courseSectionId: String(baseCourse.courseSectionId ?? ""),
+					displayCourseId: String(baseCourse.displayCourseId ?? ""),
 					Faculty,
 					courseSchool,
 					courseType,

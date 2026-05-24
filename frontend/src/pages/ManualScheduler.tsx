@@ -17,7 +17,7 @@ import { getCourseCredit } from "../lib/courseUtils";
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import RoomSelector from "../components/RoomSelector";
-import { CourseDetailsModal } from "../components/CourseDetailsModal";
+import { useCourseModal } from "../context/CourseModalContext";
 import SchedulingReportBanner from "../components/SchedulingReportBanner";
 import schedulingService from "../services/schedulingService";
 import type {
@@ -292,12 +292,7 @@ const ManualScheduler = () => {
 		useState<ProfessorPreferenceMode>("strict");
 	const [searchTerm, setSearchTerm] = useState("");
 	const [schoolFilter, setSchoolFilter] = useState("ALL");
-	const [activeCourseDetails, setActiveCourseDetails] = useState<{
-		course: Course;
-		day: string;
-		startTime: string;
-		endTime: string;
-	} | null>(null);
+	const { open } = useCourseModal();
 	const tableContainerRef = useRef<HTMLDivElement>(null);
 	const isDragging = useRef(false);
 
@@ -548,7 +543,10 @@ const ManualScheduler = () => {
 		endTime: string,
 	) => {
 		if (isDragging.current) return;
-		setActiveCourseDetails({ course, day, startTime, endTime });
+		// prefer global modal
+		open(course, day, startTime, endTime, () => {
+			handleRoomEditClick(course, day, startTime, endTime);
+		});
 	};
 
 	const handleRoomEditClick = (
@@ -1085,25 +1083,7 @@ const ManualScheduler = () => {
 					}}
 				/>
 			)}
-			{activeCourseDetails && (
-				<CourseDetailsModal
-					course={activeCourseDetails.course}
-					day={activeCourseDetails.day}
-					startTime={activeCourseDetails.startTime}
-					endTime={activeCourseDetails.endTime}
-					isSelected={false}
-					onClose={() => setActiveCourseDetails(null)}
-					onEditRoom={() => {
-						handleRoomEditClick(
-							activeCourseDetails.course,
-							activeCourseDetails.day,
-							activeCourseDetails.startTime,
-							activeCourseDetails.endTime,
-						);
-						setActiveCourseDetails(null);
-					}}
-				/>
-			)}
+			{/* legacy local modal removed: global CourseModalProvider handles rendering */}
 		</div>
 	);
 };

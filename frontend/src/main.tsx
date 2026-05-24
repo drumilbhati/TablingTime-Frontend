@@ -3,11 +3,14 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.tsx'
 import { BrowserRouter } from 'react-router-dom'
+import { CourseModalProvider } from './context/CourseModalContext'
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <CourseModalProvider>
+        <App />
+      </CourseModalProvider>
     </BrowserRouter>
   </StrictMode>,
 )

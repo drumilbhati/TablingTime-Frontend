@@ -1,0 +1,55 @@
+name: Deploy Frontend to Azure
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm install
+
+      - name: Build Frontend
+        run: |
+          cd frontend
+          VITE_API_BASE_URL= npm run build -- --skipLibCheck
+
+      - name: Compress Build
+        run: |
+          cd frontend/dist
+          tar -czf ../../frontend-dist.tgz .
+
+      - name: Upload to Azure VM
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.AZURE_VM_IP }}
+          username: azureuser
+          key: ${{ secrets.AZURE_SSH_KEY }}
+          source: "frontend-dist.tgz"
+          target: "/home/azureuser/tablingtime-backend/"
+
+      - name: Extract and Restart Service
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.AZURE_VM_IP }}
+          username: azureuser
+          key: ${{ secrets.AZURE_SSH_KEY }}
+          script: |
+            cd /home/azureuser/tablingtime-backend
+            mkdir -p public
+            tar -xzf frontend-dist.tgz -C public
+            sudo systemctl restart tablingtime-backend.service

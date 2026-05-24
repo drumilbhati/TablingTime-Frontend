@@ -9,6 +9,7 @@ import schedulingService, {
 } from "../services/schedulingService";
 import { toast } from "sonner";
 import { useCourses } from "../context/CoursesContext";
+import { useCourseModal } from "../context/CourseModalContext";
 
 const EMPTY_FORM: RoomUpsertPayload = {
 	roomNumber: "",
@@ -57,6 +58,7 @@ const RoomManagement = () => {
 	const [scheduleDayKey, setScheduleDayKey] = useState("");
 	const [scheduleTimeSlot, setScheduleTimeSlot] = useState("");
 	const { courses } = useCourses();
+    const { open } = useCourseModal();
 
 	const loadRooms = useCallback(async () => {
 		setLoading(true);
@@ -632,12 +634,27 @@ const RoomManagement = () => {
 												))}
 											</select>
 										</div>
-										<button
-											onClick={handleAddSchedule}
-											className="btn-outline px-3 py-2 text-xs"
-										>
-											Add
-										</button>
+										<div className="flex gap-2">
+											<button
+												className="btn-ghost px-3 py-2 text-xs"
+												onClick={() => {
+													if (!scheduleDraft.courseId) return;
+													const course = courses.find((c) => c.courseId === scheduleDraft.courseId) ||
+														courseOptions.find((c) => c.courseId === scheduleDraft.courseId);
+													if (course) {
+														open(course);
+													}
+												}}
+											>
+												View
+											</button>
+											<button
+												onClick={handleAddSchedule}
+												className="btn-outline px-3 py-2 text-xs"
+											>
+												Add
+											</button>
+										</div>
 									</div>
 
 									<button

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useCourses } from "../context/CoursesContext";
+import { useCourseModal } from "../context/CourseModalContext";
 import ErrorState from "./ErrorState";
 import { getCourseColors } from "../lib/courseColors";
 
@@ -10,6 +11,7 @@ interface SidebarProps {
 
 const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
 	const { courses, loading, error, refetch } = useCourses();
+	const { open } = useCourseModal();
 	const [searchQuery, setSearchQuery] = useState("");
 	const [schoolFilter, setSchoolFilter] = useState("ALL");
 
@@ -89,9 +91,14 @@ const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
 						const palette = getCourseColors(course);
 
 						return (
-							<li key={course._id}>
+								<li key={course._id}>
 								<button
-									onClick={() => onSelectCourse(course.courseId)}
+									onClick={() => {
+										onSelectCourse(course.courseId);
+										const t = (course.timeslots || [])[0];
+										if (t) open(course as any, t.day, t.startTime, t.endTime);
+										else open(course as any);
+									}}
 									className={`w-full text-left p-3 rounded-lg border transition-all shadow-sm ${
 										isSelected
 											? `${palette.bg} ${palette.border} ring-2 ring-gray-900/10`

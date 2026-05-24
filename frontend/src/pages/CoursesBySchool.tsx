@@ -1,17 +1,44 @@
 import { useEffect, useMemo, useState } from "react";
 import schedulingService from "../services/schedulingService";
 import type { Course } from "../context/CoursesContext";
+import { useCourseModal } from "../context/CourseModalContext";
 
 const SCHOOL_OPTIONS = ["SEAS", "SAS", "AMSOM"] as const;
+
+type Section = Course;
+
+interface CourseGroup {
+	courseId: string;
+	courseCode?: string;
+	courseName?: string;
+	courseType?: string;
+	Faculty?: string;
+	courseSchool?: string;
+	sections: Section[];
+}
+
+const getSectionSortKey = (section: Section) => {
+	const raw = section.section ?? section.displayCourseId ?? section.sectionId ?? "";
+	const numeric = Number.parseInt(String(raw).replace(/\D+/g, ""), 10);
+	return Number.isNaN(numeric) ? String(raw) : String(numeric).padStart(4, "0");
+};
+
+const getSectionLabel = (section: Section) => {
+	if (section.section) return `Section ${section.section}`;
+	if (section.displayCourseId) return `Section ${section.displayCourseId}`;
+	if (section.sectionId) return `Section ${section.sectionId}`;
+	return "Section -";
+};
 
 const CoursesBySchool = () => {
 	const [school, setSchool] = useState<(typeof SCHOOL_OPTIONS)[number]>(
 		SCHOOL_OPTIONS[0],
 	);
-	const [courses, setCourses] = useState<Course[]>([]);
+	const [sections, setSections] = useState<Section[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [query, setQuery] = useState("");
+	const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
 
 	useEffect(() => {
 		const fetchCourses = async () => {
@@ -19,12 +46,10 @@ const CoursesBySchool = () => {
 			setError(null);
 			try {
 				const data = await schedulingService.getCoursesBySchool(school);
-				setCourses(data as Course[]);
+				setSections(data as Section[]);
 			} catch (err) {
-				setCourses([]);
-				setError(
-					err instanceof Error ? err.message : "Failed to fetch courses",
-				);
+				setSections([]);
+				setError(err instanceof Error ? err.message : "Failed to fetch courses");
 			} finally {
 				setLoading(false);
 			}
@@ -33,24 +58,79 @@ const CoursesBySchool = () => {
 		fetchCourses();
 	}, [school]);
 
-	const filteredCourses = useMemo(() => {
+	const grouped = useMemo(() => {
+		const map = new Map<string, CourseGroup>();
+		for (const s of sections) {
+			const key = s.parentCourseId || s.courseId || s.courseCode || s._id;
+			if (!map.has(key)) {
+				map.set(key, {
+					courseId: key,
+					courseCode: s.courseCode,
+					courseName: s.courseName,
+					courseType: s.courseType,
+					Faculty: s.Faculty,
+					courseSchool: s.courseSchool,
+					sections: [s],
+				});
+			} else {
+				map.get(key)!.sections.push(s);
+			}
+		}
+		return Array.from(map.values()).map((group) => ({
+			...group,
+			sections: [...group.sections].sort((a, b) => {
+				const aKey = getSectionSortKey(a);
+				const bKey = getSectionSortKey(b);
+				return aKey.localeCompare(bKey, undefined, { numeric: true });
+			}),
+		}));
+	}, [sections]);
+
+	const filtered = useMemo(() => {
 		const needle = query.trim().toLowerCase();
-		if (!needle) return courses;
-		return courses.filter((course) => {
-			const id = course.courseId?.toLowerCase() ?? "";
-			const code = course.courseCode?.toLowerCase() ?? "";
-			const name = course.courseName?.toLowerCase() ?? "";
+		if (!needle) return grouped;
+		return grouped.filter((g) => {
+			const id = g.courseId?.toLowerCase() ?? "";
+			const code = g.courseCode?.toLowerCase() ?? "";
+			const name = g.courseName?.toLowerCase() ?? "";
 			return id.includes(needle) || code.includes(needle) || name.includes(needle);
 		});
-	}, [courses, query]);
+	}, [grouped, query]);
+
+	const renderTimeslots = (s: Section) => {
+		if (s.timeslots?.length) {
+			const groupedByDay = new Map<string, string[]>();
+			for (const t of s.timeslots) {
+				const label = `${t.startTime}–${t.endTime}`;
+				const labels = groupedByDay.get(t.day) ?? [];
+				if (!labels.includes(label)) {
+					labels.push(label);
+					groupedByDay.set(t.day, labels);
+				}
+			}
+
+			return Array.from(groupedByDay.entries())
+				.map(([day, times]) => `${day}: ${times.join(", ")}`)
+				.join("; ");
+		}
+
+		if (s.timing?.length) {
+			return s.timing.join(", ");
+		}
+
+		return "-";
+	};
+
+	const { open } = useCourseModal();
+
+	const toggleExpand = (courseId: string) =>
+		setExpandedCourse((prev) => (prev === courseId ? null : courseId));
 
 	return (
 		<div className="flex min-h-[calc(100svh-73px)] flex-col bg-white">
 			<div className="px-6 py-6 border-b border-gray-100 bg-white shadow-sm">
 				<h1 className="page-title">Courses by School</h1>
-				<p className="body-sm mt-0.5 text-gray-400">
-					Browse the catalog filtered by school code.
-				</p>
+				<p className="body-sm mt-0.5 text-gray-400">Browse the catalog filtered by school code.</p>
 			</div>
 
 			<div className="px-6 py-4 border-b border-gray-50 bg-gray-50/30 flex flex-wrap items-center gap-4">
@@ -58,9 +138,7 @@ const CoursesBySchool = () => {
 					<label className="label-caps">School</label>
 					<select
 						value={school}
-						onChange={(e) =>
-							setSchool(e.target.value as (typeof SCHOOL_OPTIONS)[number])
-						}
+						onChange={(e) => setSchool(e.target.value as (typeof SCHOOL_OPTIONS)[number])}
 						className="rounded border border-gray-200 px-3 py-2 text-sm"
 					>
 						{SCHOOL_OPTIONS.map((option) => (
@@ -77,7 +155,7 @@ const CoursesBySchool = () => {
 					className="flex-1 min-w-[220px] rounded border border-gray-200 px-3 py-2 text-sm"
 				/>
 				<span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">
-					{loading ? "..." : `${filteredCourses.length} Courses`}
+					{loading ? "..." : `${filtered.length} Courses`}
 				</span>
 			</div>
 
@@ -86,7 +164,7 @@ const CoursesBySchool = () => {
 					<div className="h-48 bg-white border border-gray-100 rounded-xl animate-pulse" />
 				) : error ? (
 					<div className="text-sm text-red-500 font-semibold">{error}</div>
-				) : filteredCourses.length === 0 ? (
+				) : filtered.length === 0 ? (
 					<div className="text-sm text-gray-400">No courses found.</div>
 				) : (
 					<div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -98,27 +176,81 @@ const CoursesBySchool = () => {
 									<th className="px-4 py-3 text-left">Type</th>
 									<th className="px-4 py-3 text-left">Faculty</th>
 									<th className="px-4 py-3 text-left">School</th>
+									<th className="px-4 py-3 text-left">Sections</th>
 								</tr>
 							</thead>
 							<tbody>
-								{filteredCourses.map((course) => (
-									<tr key={course._id} className="border-t border-gray-100">
-										<td className="px-4 py-3 font-semibold text-gray-900">
-											{course.courseCode || course.courseId}
-										</td>
-										<td className="px-4 py-3 text-gray-600">
-											{course.courseName || "-"}
-										</td>
-										<td className="px-4 py-3 text-gray-500">
-											{course.courseType || "-"}
-										</td>
-										<td className="px-4 py-3 text-gray-500">
-											{course.Faculty || "-"}
-										</td>
-										<td className="px-4 py-3 text-gray-500">
-											{course.courseSchool || school}
-										</td>
-									</tr>
+								{filtered.map((g) => (
+									<>
+										<tr
+											key={g.courseId}
+											className="border-t border-gray-100 cursor-pointer hover:bg-gray-50"
+											onClick={() => toggleExpand(g.courseId)}
+										>
+											<td className="px-4 py-3 font-semibold text-gray-900">
+												{g.courseCode || g.courseId}
+											</td>
+											<td className="px-4 py-3 text-gray-600">{g.courseName || "-"}</td>
+											<td className="px-4 py-3 text-gray-500">{g.courseType || "-"}</td>
+											<td className="px-4 py-3 text-gray-500">{g.Faculty || "-"}</td>
+											<td className="px-4 py-3 text-gray-500">{g.courseSchool || school}</td>
+											<td className="px-4 py-3 text-gray-700">{g.sections.length}</td>
+										</tr>
+
+										{expandedCourse === g.courseId && (
+											<tr className="bg-gray-50">
+												<td colSpan={6} className="px-4 py-4">
+													<div className="overflow-x-auto">
+														<table className="w-full text-sm">
+															<thead className="text-xs text-gray-400 uppercase tracking-widest">
+																<tr>
+																	<th className="px-3 py-2 text-left">Section</th>
+																	<th className="px-3 py-2 text-left">Professors</th>
+																	<th className="px-3 py-2 text-left">Students</th>
+																	<th className="px-3 py-2 text-left">Allocated</th>
+																	<th className="px-3 py-2 text-left">Timeslots</th>
+																</tr>
+															</thead>
+															<tbody>
+																{g.sections.map((s) => (
+																	<tr key={s._id} className="border-t border-gray-100">
+																		<td className="px-3 py-2 font-semibold">
+																			<button
+																				className="font-semibold"
+																				onClick={() => {
+																					// open modal for this section; prefer explicit timeslot if available
+																					const t = (s.timeslots || [])[0];
+																					if (t) open(s as Course, t.day, t.startTime, t.endTime);
+																					else open(s as Course);
+																				}}
+																			>
+																				{getSectionLabel(s)}
+																			</button>
+																		</td>
+																		<td className="px-3 py-2">{(s.professorId || []).length || "-"}</td>
+																		<td className="px-3 py-2">{(s.studentId || []).length || "-"}</td>
+																		<td className="px-3 py-2">{s.isAllocated ? "Yes" : "No"}</td>
+																		<td className="px-3 py-2">
+																			<button
+																				className="text-left"
+																				onClick={() => {
+																					const t = (s.timeslots || [])[0];
+																					if (t) open(s as Course, t.day, t.startTime, t.endTime);
+																					else open(s as Course);
+																				}}
+																			>
+																				{renderTimeslots(s)}
+																			</button>
+																		</td>
+																	</tr>
+																))}
+															</tbody>
+														</table>
+													</div>
+												</td>
+											</tr>
+										)}
+									</>
 								))}
 							</tbody>
 						</table>

@@ -13,6 +13,7 @@ import {
 	useCourses,
 	type Course as CourseData,
 } from "../context/CoursesContext";
+import { useCourseModal } from "../context/CourseModalContext";
 import { getCourseColors } from "../lib/courseColors";
 
 type RoomRef =
@@ -41,6 +42,7 @@ const OccupiedRooms = () => {
 	const [selectedTimeslot, setSelectedTimeslot] = useState<SelectedTimeslot | null>(
 		null,
 	);
+	const { open } = useCourseModal();
 	const [selectedBuilding, setSelectedBuilding] = useState("ALL");
 	const [searchTerm, setSearchTerm] = useState("");
 
@@ -410,7 +412,16 @@ const OccupiedRooms = () => {
 										return (
 											<div
 												key={course._id}
-												className={`border rounded-xl p-4 transition-all shadow-sm hover:shadow-md ${palette.bg} ${palette.border} ${palette.hoverBg}`}
+												onClick={() => {
+													open(
+														course,
+														selectedTimeslot!.day,
+														selectedTimeslot!.startTime,
+														selectedTimeslot!.endTime,
+													);
+													setSelectedTimeslot(null);
+												}}
+												className={`cursor-pointer border rounded-xl p-4 transition-all shadow-sm hover:shadow-md ${palette.bg} ${palette.border} ${palette.hoverBg}`}
 											>
 												<div className="flex items-start justify-between">
 													<div

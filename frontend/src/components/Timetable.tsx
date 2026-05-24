@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useCourses, type Course } from "../context/CoursesContext";
 import ErrorState from "./ErrorState";
-import { CourseDetailsModal } from "./CourseDetailsModal";
 import { getCourseColors } from "../lib/courseColors";
+import { useCourseModal } from "../context/CourseModalContext";
 
 interface TimetableProps {
 	selectedCourse: string | null;
@@ -46,12 +46,7 @@ const formatRooms = (rooms: (string | RoomInfo)[]) => {
 
 const Timetable = ({ selectedCourse }: TimetableProps) => {
 	const { courses, loading, error, refetch } = useCourses();
-	const [activeModal, setActiveModal] = useState<{
-		course: Course;
-		day: string;
-		startTime: string;
-		endTime: string;
-	} | null>(null);
+	const { open } = useCourseModal();
 
 	// Build a sorted list of unique timeslot time-ranges across all courses
 	const getUniqueTimeslots = (): { startTime: string; endTime: string }[] => {
@@ -176,12 +171,7 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 															<button
 																key={course._id}
 																onClick={() =>
-																	setActiveModal({
-																		course,
-																		day,
-																		startTime,
-																		endTime,
-																	})
+																	open(course, day, startTime, endTime)
 																}
 																title={`${course.courseCode || course.courseId} — ${course.courseName}`}
 																className={`w-full text-left rounded-lg border p-2 transition-all hover:scale-[1.01] active:scale-[0.99] ${colors.bg} ${colors.text} ${colors.border} ${colors.hoverBg} ${
@@ -229,17 +219,7 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 				</div>
 			)}
 
-			{/* Course detail modal */}
-			{activeModal && (
-				<CourseDetailsModal
-					course={activeModal.course}
-					day={activeModal.day}
-					startTime={activeModal.startTime}
-					endTime={activeModal.endTime}
-					isSelected={selectedCourse === activeModal.course.courseId}
-					onClose={() => setActiveModal(null)}
-				/>
-			)}
+
 		</div>
 	);
 };

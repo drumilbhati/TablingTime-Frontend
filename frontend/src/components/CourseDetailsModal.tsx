@@ -37,6 +37,14 @@ const formatRooms = (rooms: (string | RoomInfo)[]) => {
 	return Array.from(new Set(valid)).join(", ");
 };
 
+const formatSection = (course: Course) => {
+	if (course.section) return `Section ${course.section}`;
+	if (course.sectionId) return `Section ${course.sectionId}`;
+	if (course.courseSectionId) return `Section ${course.courseSectionId}`;
+	if (course.displayCourseId) return course.displayCourseId;
+	return "Section unavailable";
+};
+
 export interface CourseDetailsModalProps {
 	course: Course;
 	day: string;
@@ -94,6 +102,13 @@ export const CourseDetailsModal = ({
 							}`}
 						>
 							{course.courseName}
+						</p>
+						<p
+							className={`text-xs font-black uppercase tracking-[0.18em] mt-3 ${
+								isSelected ? "text-white/75" : "text-slate-400"
+							}`}
+						>
+							{formatSection(course)}
 						</p>
 					</div>
 					<button

@@ -457,6 +457,8 @@ const ManualScheduler = () => {
 	const { open } = useCourseModal();
 	const tableContainerRef = useRef<HTMLDivElement>(null);
 	const isDragging = useRef(false);
+	const autoScrollFrame = useRef<number | null>(null);
+	const autoScrollVelocity = useRef({ x: 0, y: 0 });
 
 	useEffect(() => {
 		if (schedulingError) {
@@ -504,25 +506,73 @@ const ManualScheduler = () => {
 		setPriorityOrder(nextOrder);
 	};
 
-	const handleDrag = useCallback((e: React.DragEvent) => {
-		if (e.clientX === 0 && e.clientY === 0) return;
-		if (tableContainerRef.current) {
-			const scrollableDiv = tableContainerRef.current;
-			const rect = scrollableDiv.getBoundingClientRect();
-			const threshold = 80;
-			const scrollAmount = 15;
-
-			if (e.clientX > rect.right - threshold)
-				scrollableDiv.scrollLeft += scrollAmount;
-			else if (e.clientX < rect.left + threshold)
-				scrollableDiv.scrollLeft -= scrollAmount;
-
-			if (e.clientY > rect.bottom - threshold)
-				scrollableDiv.scrollTop += scrollAmount;
-			else if (e.clientY < rect.top + threshold)
-				scrollableDiv.scrollTop -= scrollAmount;
+	const stopAutoScroll = useCallback(() => {
+		autoScrollVelocity.current = { x: 0, y: 0 };
+		if (autoScrollFrame.current !== null) {
+			window.cancelAnimationFrame(autoScrollFrame.current);
+			autoScrollFrame.current = null;
 		}
 	}, []);
+
+	const startAutoScroll = useCallback(() => {
+		if (autoScrollFrame.current !== null) return;
+
+		const tick = () => {
+			const container = tableContainerRef.current;
+			const { x, y } = autoScrollVelocity.current;
+
+			if (!container || !isDragging.current || (x === 0 && y === 0)) {
+				autoScrollFrame.current = null;
+				return;
+			}
+
+			container.scrollBy({ left: x, top: y, behavior: "auto" });
+			autoScrollFrame.current = window.requestAnimationFrame(tick);
+		};
+
+		autoScrollFrame.current = window.requestAnimationFrame(tick);
+	}, []);
+
+	const updateDragAutoScroll = useCallback(
+		(clientX: number, clientY: number) => {
+			const container = tableContainerRef.current;
+			if (!container || (clientX === 0 && clientY === 0)) return;
+
+			const rect = container.getBoundingClientRect();
+			const edgeSize = 120;
+			const maxSpeed = 24;
+			const clamp = (value: number) =>
+				Math.max(-maxSpeed, Math.min(maxSpeed, value));
+			let x = 0;
+			let y = 0;
+
+			if (clientX > rect.right - edgeSize) {
+				x = clamp(((clientX - (rect.right - edgeSize)) / edgeSize) * maxSpeed);
+			} else if (clientX < rect.left + edgeSize) {
+				x = clamp(-(((rect.left + edgeSize - clientX) / edgeSize) * maxSpeed));
+			}
+
+			if (clientY > rect.bottom - edgeSize) {
+				y = clamp(((clientY - (rect.bottom - edgeSize)) / edgeSize) * maxSpeed);
+			} else if (clientY < rect.top + edgeSize) {
+				y = clamp(-(((rect.top + edgeSize - clientY) / edgeSize) * maxSpeed));
+			}
+
+			autoScrollVelocity.current = { x, y };
+			if (x !== 0 || y !== 0) startAutoScroll();
+			else stopAutoScroll();
+		},
+		[startAutoScroll, stopAutoScroll],
+	);
+
+	const handleDrag = useCallback(
+		(e: React.DragEvent) => {
+			updateDragAutoScroll(e.clientX, e.clientY);
+		},
+		[updateDragAutoScroll],
+	);
+
+	useEffect(() => stopAutoScroll, [stopAutoScroll]);
 
 	const toggleSection = useCallback(
 		(section: "unscheduled" | "partial" | "scheduled") => {
@@ -836,7 +886,10 @@ const ManualScheduler = () => {
 		setShowRoomSelector(true);
 	};
 
-	const handleDragStart = (course: Course) => {
+	const handleDragStart = (course: Course, e?: React.DragEvent) => {
+		if (e?.dataTransfer) {
+			e.dataTransfer.effectAllowed = "move";
+		}
 		isDragging.current = true;
 		setDraggedCourse(course);
 		setDraggedFromScheduled(false);
@@ -848,7 +901,11 @@ const ManualScheduler = () => {
 		day: string,
 		startTime: string,
 		endTime: string,
+		e?: React.DragEvent,
 	) => {
+		if (e?.dataTransfer) {
+			e.dataTransfer.effectAllowed = "move";
+		}
 		isDragging.current = true;
 		setDraggedCourse(course);
 		setDraggedFromScheduled(true);
@@ -867,7 +924,8 @@ const ManualScheduler = () => {
 		endTime: string,
 	) => {
 		e.preventDefault();
-		e.currentTarget.classList.remove("bg-blue-50");
+		stopAutoScroll();
+		e.currentTarget.classList.remove("bg-gray-50");
 		if (!draggedCourse) return;
 
 		if (
@@ -1240,13 +1298,14 @@ const ManualScheduler = () => {
 												<div
 													key={group.key}
 													draggable
-													onDragStart={() => {
+													onDragStart={(e) => {
 														// Dragging from the left rail should add a new session, not move an existing one.
-														handleDragStart(representative);
+														handleDragStart(representative, e);
 													}}
 												onDrag={handleDrag}
 												onDragEnd={() => {
 													isDragging.current = false;
+													stopAutoScroll();
 													setDraggedCourse(null);
 												}}
 												className={`p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
@@ -1287,8 +1346,20 @@ const ManualScheduler = () => {
 				</div>
 
 				{/* Grid */}
-				<div className="flex-1 p-4 bg-gray-50/50 overflow-auto no-scrollbar">
-					<div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-auto no-scrollbar">
+				<div
+					ref={tableContainerRef}
+					onDragOver={(e) => {
+						e.preventDefault();
+						updateDragAutoScroll(e.clientX, e.clientY);
+					}}
+					onDragLeave={(e) => {
+						if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+							stopAutoScroll();
+						}
+					}}
+					className="flex-1 p-4 bg-gray-50/50 overflow-auto no-scrollbar"
+				>
+					<div className="bg-white rounded-3xl border border-gray-100 shadow-sm">
 						<table className="w-full border-collapse">
 							<thead>
 								<tr className="bg-white border-b border-gray-100">
@@ -1336,6 +1407,7 @@ const ManualScheduler = () => {
 													key={day}
 													onDragOver={(e) => {
 														e.preventDefault();
+														updateDragAutoScroll(e.clientX, e.clientY);
 														e.currentTarget.classList.add("bg-gray-50");
 													}}
 													onDragLeave={(e) =>
@@ -1354,18 +1426,21 @@ const ManualScheduler = () => {
 																	<div
 																		key={c._id}
 																		draggable
-																		onDragStart={() =>
+																		onDragStart={(e) =>
 																			handleDragStartFromScheduled(
 																				c,
 																				day,
 																				startTime,
 																				endTime,
+																				e,
 																			)
 																		}
 																		onDragEnd={() => {
 																			isDragging.current = false;
+																			stopAutoScroll();
 																			setDraggedCourse(null);
 																		}}
+																		onDrag={handleDrag}
 																		onClick={() =>
 																			handleCourseClick(
 																				c,

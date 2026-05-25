@@ -215,6 +215,15 @@ const RoomSelector = ({
             </div>
           )}
 
+          {actionLoading && (
+            <div className="mb-6 flex items-center gap-3 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm font-medium text-blue-800">
+              <div className="h-4 w-4 rounded-full border-2 border-blue-200 border-t-blue-600 animate-spin" />
+              <span>
+                {isReplace ? "Moving course to selected room..." : "Assigning room..."}
+              </span>
+            </div>
+          )}
+
           {/* Course & Slot Summary */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">

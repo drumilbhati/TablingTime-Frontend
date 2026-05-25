@@ -3,6 +3,7 @@ import ErrorState from "./ErrorState";
 import { getCourseColors } from "../lib/courseColors";
 import { useCourseModal } from "../context/CourseModalContext";
 import { formatCourseLabel } from "../lib/courseLabels";
+import { getRoomLabelForSlot } from "../lib/courseRooms";
 
 interface TimetableProps {
 	selectedCourse: string | null;
@@ -19,30 +20,6 @@ const DAY_FULL: Record<string, string> = {
 	Sat: "Saturday",
 };
 
-interface RoomInfo {
-	roomNumber?: string;
-	name?: string;
-	_id?: string;
-	building?: string;
-}
-
-const formatRooms = (rooms: (string | RoomInfo)[]) => {
-	if (!rooms || rooms.length === 0) return "";
-	const valid = rooms
-		.map((r) => {
-			if (typeof r === "string") return r === "[object Object]" ? "" : r;
-			if (r && typeof r === "object") {
-				const roomName = (r as RoomInfo).roomNumber || (r as RoomInfo).name || (r as RoomInfo)._id || "";
-				if ((r as RoomInfo).building && roomName) {
-					return `${(r as RoomInfo).building} - ${roomName}`;
-				}
-				return roomName;
-			}
-			return String(r);
-		})
-		.filter(Boolean);
-	return Array.from(new Set(valid)).join(", ");
-};
 
 const Timetable = ({ selectedCourse }: TimetableProps) => {
 	const { courses, loading, error, refetch } = useCourses();
@@ -166,6 +143,12 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 														const isSelected =
 															selectedCourse === course.courseId;
 														const colors = getCourseColors(course);
+														const roomLabel = getRoomLabelForSlot(
+															course,
+															day,
+															startTime,
+															endTime,
+														);
 
 														return (
 															<button
@@ -186,10 +169,10 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 																<div className="text-[10px] font-medium line-clamp-1 leading-tight text-gray-600">
 																	{course.courseName}
 																</div>
-																{formatRooms(course.room) && (
+																{roomLabel && (
 																	<div className="mt-1.5 flex items-center gap-1 text-[9px] font-semibold text-gray-500">
 																		<div className="w-1 h-1 rounded-full bg-current opacity-40" />
-																		{formatRooms(course.room)}
+																		{roomLabel}
 																	</div>
 																)}
 															</button>

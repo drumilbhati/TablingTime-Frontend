@@ -2,7 +2,8 @@ import { type Course } from "../context/CoursesContext";
 import { getCourseCredit } from "../lib/courseUtils";
 import { getCourseColors } from "../lib/courseColors";
 import { X, User, FileText, Calendar, Clock, MapPin, Pencil } from "lucide-react";
-import { formatCourseLabel, formatCourseSection } from "../lib/courseLabels";
+import { formatCourseLabel } from "../lib/courseLabels";
+import { getRoomLabelForSlot } from "../lib/courseRooms";
 
 const DAY_FULL: Record<string, string> = {
 	Mon: "Monday",
@@ -13,30 +14,6 @@ const DAY_FULL: Record<string, string> = {
 	Sat: "Saturday",
 };
 
-interface RoomInfo {
-	roomNumber?: string;
-	name?: string;
-	_id?: string;
-	building?: string;
-}
-
-const formatRooms = (rooms: (string | RoomInfo)[]) => {
-	if (!rooms || rooms.length === 0) return "";
-	const valid = rooms
-		.map((r) => {
-			if (typeof r === "string") return r === "[object Object]" ? "" : r;
-			if (r && typeof r === "object") {
-				const roomName = r.roomNumber || r.name || r._id || "";
-				if (r.building && roomName) {
-					return `${r.building} - ${roomName}`;
-				}
-				return roomName;
-			}
-			return String(r);
-		})
-		.filter(Boolean);
-	return Array.from(new Set(valid)).join(", ");
-};
 
 export interface CourseDetailsModalProps {
 	course: Course;
@@ -58,6 +35,7 @@ export const CourseDetailsModal = ({
 	onEditRoom,
 }: CourseDetailsModalProps) => {
 	const colors = getCourseColors(course);
+	const roomLabel = getRoomLabelForSlot(course, day, startTime, endTime);
 
 	return (
 		<div
@@ -156,7 +134,7 @@ export const CourseDetailsModal = ({
 								)}
 							</div>
 							<div className="text-sm font-black text-gray-900 truncate">
-								{formatRooms(course.room) || "—"}
+								{roomLabel || "—"}
 							</div>
 						</div>
 					</div>

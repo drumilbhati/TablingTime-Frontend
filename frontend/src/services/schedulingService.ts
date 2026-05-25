@@ -71,6 +71,11 @@ export interface RoomSchedulePayload {
 	courseId?: string;
 }
 
+export interface UpdateCourseSectionsPayload {
+	courseId: string;
+	numberOfSections: number;
+}
+
 export interface Slot {
 	_id: string;
 	code: string;
@@ -589,6 +594,30 @@ class SchedulingService {
 		}
 
 		return response.json();
+	}
+
+	async updateCourseSections(
+		payload: UpdateCourseSectionsPayload,
+	): Promise<{ message?: string }> {
+		const token = localStorage.getItem("token");
+		const response = await fetch(buildApiUrl("/api/admin/update-course-sections"), {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+			body: JSON.stringify(payload),
+		});
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			throw new Error(
+				data?.message ??
+					`Failed to update course sections: ${response.status}`,
+			);
+		}
+
+		return response.json().catch(() => ({}));
 	}
 
 	async getLatestSchedulingReport(): Promise<LatestSchedulingReportResponse> {

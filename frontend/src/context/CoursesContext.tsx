@@ -27,6 +27,10 @@ export interface Course {
 	Faculty: string;
 	Credits?: string | number;
 	credits?: string | number;
+	totalSections?: number;
+	sectionCount?: number;
+	totalSectionCount?: number;
+	sectionsCount?: number;
 	courseType: string;
 	courseSchool: string;
 	studentId: string[];
@@ -158,6 +162,16 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
 				const Faculty = String(
 					baseCourse.Faculty ?? baseCourse["Faculty"] ?? "",
 				);
+				const credits =
+					baseCourse.credits ?? baseCourse.Credits ?? baseCourse["Credits"];
+				const theoryCredits =
+					baseCourse.theoryCredits ??
+					baseCourse["Theory Credits"] ??
+					baseCourse["Theory Credit"];
+				const labCredits =
+					baseCourse.labCredits ??
+					baseCourse["Lab Credits"] ??
+					baseCourse["Lab Credit"];
 
 				return {
 					...baseCourse,
@@ -173,6 +187,9 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
 					Faculty,
 					courseSchool,
 					courseType,
+					credits,
+					theoryCredits,
+					labCredits,
 					timeslots,
 					room,
 					studentId,

@@ -16,6 +16,7 @@ import {
 import { useCourseModal } from "../context/CourseModalContext";
 import { getCourseColors } from "../lib/courseColors";
 import { formatCourseLabel } from "../lib/courseLabels";
+import { getRoomLabelForSlot } from "../lib/courseRooms";
 
 type RoomRef =
 	| string
@@ -88,24 +89,6 @@ const OccupiedRooms = () => {
 
 	const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-	const formatRooms = (rooms: RoomRef[]) => {
-		if (!rooms || rooms.length === 0) return "";
-		const valid = rooms
-			.map((room) => {
-				if (typeof room === "string")
-					return room === "[object Object]" ? "" : room;
-				if (room && typeof room === "object") {
-					const roomName = room.roomNumber || room.name || room._id || "";
-					if (room.building && roomName) {
-						return `${room.building} - ${roomName}`;
-					}
-					return roomName;
-				}
-				return String(room);
-			})
-			.filter(Boolean);
-		return Array.from(new Set(valid)).join(", ");
-	};
 
 	const getFilteredCoursesForTimeslot = (
 		day: string,
@@ -402,7 +385,12 @@ const OccupiedRooms = () => {
 								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 									{selectedTimeslotCourses.map((course) => {
 										const palette = getCourseColors(course);
-										const roomLabel = formatRooms(course.room);
+										const roomLabel = getRoomLabelForSlot(
+											course,
+											selectedTimeslot?.day,
+											selectedTimeslot?.startTime,
+											selectedTimeslot?.endTime,
+										);
 										return (
 											<div
 												key={course._id}

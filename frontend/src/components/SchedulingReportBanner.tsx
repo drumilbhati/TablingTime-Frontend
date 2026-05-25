@@ -201,9 +201,9 @@ const SchedulingReportBanner = ({
 
 						{isViolationsExpanded && (
 							<div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-								{report.violations.map((violation) => (
+								{report.violations.map((violation, index) => (
 									<article
-										key={`${violation.courseId}-${violation.professorId}-${violation.day}-${violation.startTime}-${violation.endTime}`}
+										key={`${violation.courseId ?? "unknown"}-${violation.professorId ?? "unknown"}-${violation.day ?? "unknown"}-${violation.startTime ?? "unknown"}-${violation.endTime ?? "unknown"}-${index}`}
 										className="rounded-xl border border-amber-200 bg-white/80 p-4"
 									>
 										<div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">

@@ -1,7 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import schedulingService from "../services/schedulingService";
 import type { Course } from "../context/CoursesContext";
+import { useCourses } from "../context/CoursesContext";
 import { useCourseModal } from "../context/CourseModalContext";
+import { toast } from "sonner";
 
 const SCHOOL_OPTIONS = ["SEAS", "SAS", "AMSOM"] as const;
 
@@ -39,24 +41,27 @@ const CoursesBySchool = () => {
 	const [error, setError] = useState<string | null>(null);
 	const [query, setQuery] = useState("");
 	const [expandedCourse, setExpandedCourse] = useState<string | null>(null);
+	const [sectionEdits, setSectionEdits] = useState<Record<string, string>>({});
+	const [savingSections, setSavingSections] = useState<Record<string, boolean>>({});
+	const { refetch: refetchAllCourses } = useCourses();
+
+	const loadCourses = useCallback(async () => {
+		setLoading(true);
+		setError(null);
+		try {
+			const data = await schedulingService.getCoursesBySchool(school);
+			setSections(data as Section[]);
+		} catch (err) {
+			setSections([]);
+			setError(err instanceof Error ? err.message : "Failed to fetch courses");
+		} finally {
+			setLoading(false);
+		}
+	}, [school]);
 
 	useEffect(() => {
-		const fetchCourses = async () => {
-			setLoading(true);
-			setError(null);
-			try {
-				const data = await schedulingService.getCoursesBySchool(school);
-				setSections(data as Section[]);
-			} catch (err) {
-				setSections([]);
-				setError(err instanceof Error ? err.message : "Failed to fetch courses");
-			} finally {
-				setLoading(false);
-			}
-		};
-
-		fetchCourses();
-	}, [school]);
+		loadCourses();
+	}, [loadCourses]);
 
 	const grouped = useMemo(() => {
 		const map = new Map<string, CourseGroup>();
@@ -121,6 +126,60 @@ const CoursesBySchool = () => {
 		return "-";
 	};
 
+	const resolveTotalSections = (group: CourseGroup) => {
+		const rawValues = group.sections.map((section) =>
+			Number(
+				section.totalSections ??
+					section.sectionCount ??
+					section.totalSectionCount ??
+					section.sectionsCount,
+			),
+		);
+		const resolved = rawValues.find(
+			(value) => Number.isFinite(value) && value >= 0,
+		);
+		return resolved ?? group.sections.length;
+	};
+
+	const handleSaveSections = async (courseId: string, baseValue: number) => {
+		const raw = sectionEdits[courseId];
+		const parsed = Number(raw);
+		if (!Number.isFinite(parsed) || parsed < 0) {
+			toast.error("Enter a valid section count.");
+			return;
+		}
+		if (parsed === baseValue) {
+			setSectionEdits((prev) => {
+				const next = { ...prev };
+				delete next[courseId];
+				return next;
+			});
+			return;
+		}
+
+		setSavingSections((prev) => ({ ...prev, [courseId]: true }));
+		try {
+			await schedulingService.updateCourseSections({
+				courseId,
+				numberOfSections: parsed,
+			});
+			toast.success("Total sections updated.");
+			setSectionEdits((prev) => {
+				const next = { ...prev };
+				delete next[courseId];
+				return next;
+			});
+			await loadCourses();
+			await refetchAllCourses();
+		} catch (err) {
+			toast.error(
+				err instanceof Error ? err.message : "Failed to update sections.",
+			);
+		} finally {
+			setSavingSections((prev) => ({ ...prev, [courseId]: false }));
+		}
+	};
+
 	const { open } = useCourseModal();
 
 	const toggleExpand = (courseId: string) =>
@@ -168,7 +227,7 @@ const CoursesBySchool = () => {
 					<div className="text-sm text-gray-400">No courses found.</div>
 				) : (
 					<div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-						<table className="w-full text-sm">
+							<table className="w-full text-sm">
 							<thead className="bg-gray-50 text-xs uppercase tracking-widest text-gray-400">
 								<tr>
 									<th className="px-4 py-3 text-left">Course</th>
@@ -177,6 +236,7 @@ const CoursesBySchool = () => {
 									<th className="px-4 py-3 text-left">Faculty</th>
 									<th className="px-4 py-3 text-left">School</th>
 									<th className="px-4 py-3 text-left">Sections</th>
+										<th className="px-4 py-3 text-left">Total Sections</th>
 								</tr>
 							</thead>
 							<tbody>
@@ -194,12 +254,62 @@ const CoursesBySchool = () => {
 											<td className="px-4 py-3 text-gray-500">{g.courseType || "-"}</td>
 											<td className="px-4 py-3 text-gray-500">{g.Faculty || "-"}</td>
 											<td className="px-4 py-3 text-gray-500">{g.courseSchool || school}</td>
-											<td className="px-4 py-3 text-gray-700">{g.sections.length}</td>
+													<td className="px-4 py-3 text-gray-700">{g.sections.length}</td>
+													<td className="px-4 py-3">
+														{(() => {
+															const baseValue = resolveTotalSections(g);
+															const editValue = sectionEdits[g.courseId];
+															const isSaving = Boolean(savingSections[g.courseId]);
+															const inputValue = editValue ?? String(baseValue);
+															const parsedValue = Number(inputValue);
+															const isDirty =
+																editValue !== undefined &&
+																Number.isFinite(parsedValue) &&
+																parsedValue !== baseValue;
+
+															return (
+																<div
+																	className="flex items-center gap-2"
+																	onClick={(e) => e.stopPropagation()}
+																>
+																	<input
+																		type="number"
+																		min={0}
+																		step={1}
+																		value={inputValue}
+																		disabled={isSaving}
+																		onChange={(e) => {
+																			setSectionEdits((prev) => ({
+																				...prev,
+																				[g.courseId]: e.target.value,
+																			}));
+																		}}
+																		onKeyDown={(e) => {
+																			if (e.key === "Enter") {
+																				handleSaveSections(g.courseId, baseValue);
+																			}
+																		}}
+																		className="w-20 rounded border border-gray-200 px-2 py-1 text-sm"
+																		aria-label="Total sections"
+																	/>
+																	<button
+																		onClick={() =>
+																		handleSaveSections(g.courseId, baseValue)
+																	}
+																		disabled={!isDirty || isSaving}
+																		className="rounded-md border border-gray-200 px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest text-gray-500 hover:text-gray-900 disabled:cursor-not-allowed disabled:opacity-40"
+																	>
+																		{isSaving ? "Saving" : "Save"}
+																	</button>
+																</div>
+															);
+														})()}
+													</td>
 										</tr>
 
 										{expandedCourse === g.courseId && (
 											<tr className="bg-gray-50">
-												<td colSpan={6} className="px-4 py-4">
+												<td colSpan={7} className="px-4 py-4">
 													<div className="overflow-x-auto">
 														<table className="w-full text-sm">
 															<thead className="text-xs text-gray-400 uppercase tracking-widest">

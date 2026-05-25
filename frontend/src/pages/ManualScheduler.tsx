@@ -208,7 +208,10 @@ const getRoomNumberForSlot = (
 
 const getExpectedComponentCount = (course: Course): number => {
 	const theoryCredits =
-		Number(course.theoryCredits) || Number(course.credits) || 0;
+		Number(course.theoryCredits) ||
+		Number(course.Credits) ||
+		Number(course.credits) ||
+		0;
 	const labCredits = Number(course.labCredits) || 0;
 	const componentCount = (theoryCredits > 0 ? 1 : 0) + (labCredits > 0 ? 1 : 0);
 	return componentCount > 0 ? componentCount : 1;
@@ -217,8 +220,17 @@ const getExpectedComponentCount = (course: Course): number => {
 const getScheduledComponentCount = (course: Course): number => {
 	if (!course.timeslots?.length) return 0;
 	return new Set(
-		course.timeslots.map((slot) => `${slot.startTime}|${slot.endTime}`),
+		course.timeslots.map(
+			(slot) => `${slot.day}|${slot.startTime}|${slot.endTime}`,
+		),
 	).size;
+};
+
+const formatElapsed = (seconds: number) => {
+	const mins = Math.floor(seconds / 60);
+	const secs = seconds % 60;
+	if (mins <= 0) return `${secs}s`;
+	return `${mins}m ${String(secs).padStart(2, "0")}s`;
 };
 
 const getCourseScheduleState = (
@@ -359,6 +371,8 @@ const ManualScheduler = () => {
 	const [schedulingSuccess, setSchedulingSuccess] = useState<string | null>(
 		null,
 	);
+	const [autoRunStartedAt, setAutoRunStartedAt] = useState<number | null>(null);
+	const [autoRunElapsedSeconds, setAutoRunElapsedSeconds] = useState(0);
 	const [isScheduling, setIsScheduling] = useState(false);
 	const [draggedCourse, setDraggedCourse] = useState<Course | null>(null);
 	const [draggedFromScheduled, setDraggedFromScheduled] = useState(false);
@@ -421,6 +435,16 @@ const ManualScheduler = () => {
 			setSchedulingSuccess(null);
 		}
 	}, [schedulingSuccess]);
+
+	useEffect(() => {
+		if (status.type !== "loading" || autoRunStartedAt === null) return;
+		const interval = window.setInterval(() => {
+			setAutoRunElapsedSeconds(
+				Math.floor((Date.now() - autoRunStartedAt) / 1000),
+			);
+		}, 1000);
+		return () => window.clearInterval(interval);
+	}, [status.type, autoRunStartedAt]);
 
 	useEffect(() => {
 		if (status.type === "error") {
@@ -497,6 +521,8 @@ const ManualScheduler = () => {
 
 	const handleAutoSchedule = useCallback(async () => {
 		setStatus({ type: "loading" });
+		setAutoRunStartedAt(Date.now());
+		setAutoRunElapsedSeconds(0);
 		try {
 			await schedulingService.runAutoScheduler({
 				priorityOrder,
@@ -514,6 +540,9 @@ const ManualScheduler = () => {
 				message:
 					err instanceof Error ? err.message : "Unexpected error occurred.",
 			});
+		} finally {
+			setAutoRunStartedAt(null);
+			setAutoRunElapsedSeconds(0);
 		}
 	}, [priorityOrder, professorPreferenceMode, refetch, refreshLatestReport]);
 
@@ -813,9 +842,17 @@ const ManualScheduler = () => {
 						<p className="mt-2 text-sm leading-6 text-gray-500">
 							We’re refreshing courses and scheduling reports. The page will stay visible while the backend finishes.
 						</p>
-						<div className="mt-6 h-2 overflow-hidden rounded-full bg-gray-100">
-							<div className="h-full w-1/3 rounded-full bg-gradient-to-r from-black via-gray-500 to-amber-400 animate-[loading-bar_1.5s_ease-in-out_infinite]" />
+							<div className="mt-6 h-2 overflow-hidden rounded-full bg-gray-100">
+								<div
+									className="h-full w-1/3 rounded-full bg-gradient-to-r from-black via-gray-500 to-amber-400"
+									style={{ animation: "loading-bar 1.5s ease-in-out infinite" }}
+								/>
 						</div>
+							{autoRunStartedAt !== null && (
+								<div className="pt-3 text-[10px] font-bold uppercase tracking-[0.3em] text-gray-400">
+									Running for {formatElapsed(autoRunElapsedSeconds)}
+								</div>
+							)}
 					</div>
 				</div>
 			)}
@@ -1058,17 +1095,13 @@ const ManualScheduler = () => {
 												const colors = getCourseColors(representative);
 												const sectionCount = groupSections.length;
 											return (
-											<div
-												key={group.key}
-												draggable
-												onDragStart={() => {
-													if (sec.id === "scheduled" && representative.timeslots && representative.timeslots[0]) {
-														const ts = representative.timeslots[0];
-														handleDragStartFromScheduled(representative, ts.day, ts.startTime, ts.endTime);
-													} else {
+												<div
+													key={group.key}
+													draggable
+													onDragStart={() => {
+														// Dragging from the left rail should add a new session, not move an existing one.
 														handleDragStart(representative);
-													}
-												}}
+													}}
 												onDrag={handleDrag}
 												onDragEnd={() => {
 													isDragging.current = false;
@@ -1253,6 +1286,7 @@ const ManualScheduler = () => {
 					setShowRoomSelector(false);
 					setDraggedCourse(null);
 				}}
+				isLoading={isScheduling}
 				isReplace={roomSelectorIsReplace}
 				sourceSlot={roomSelectorSource}
 			/>

@@ -96,13 +96,6 @@ export const CourseDetailsModal = ({
 						>
 							{course.courseName}
 						</p>
-						<p
-							className={`text-xs font-black uppercase tracking-[0.18em] mt-3 ${
-								isSelected ? "text-white/75" : "text-slate-400"
-							}`}
-						>
-							{formatCourseSection(course)}
-						</p>
 					</div>
 					<button
 						onClick={onClose}

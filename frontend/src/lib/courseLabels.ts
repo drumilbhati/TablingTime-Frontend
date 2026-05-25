@@ -49,3 +49,7 @@ export const formatCourseLabel = (
 
 	return sectionValue ? `${courseCode} • Section ${sectionValue}` : courseCode;
 };
+
+export const formatCourseBaseLabel = (
+	course: Pick<Course, "courseCode" | "courseId" | "courseName">,
+) => course.courseCode || course.courseId || course.courseName || "Course";

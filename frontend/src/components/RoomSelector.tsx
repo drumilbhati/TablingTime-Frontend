@@ -76,6 +76,7 @@ const RoomSelector = ({
   isLoading: actionLoading = false,
   error: actionError = null,
   isReplace = false,
+  sourceSlot = null,
 }: RoomSelectorProps) => {
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
   const [fetchLoading, setFetchLoading] = useState(false);
@@ -108,12 +109,12 @@ const RoomSelector = ({
         // If slot.timings contains codes like "M1", use them. 
         // If it contains times like "08:00-09:30", we need to convert.
         let codes: string[] = [];
-        const firstDay = slot.days[0] ? normalizeDayLabel(slot.days[0]) : undefined;
-        
-        if (slot.timings.some(t => /^[A-Z][a-z]?\d+$/.test(t))) {
+        const preferredDay = sourceSlot?.day ? normalizeDayLabel(sourceSlot.day) : (slot.days[0] ? normalizeDayLabel(slot.days[0]) : undefined);
+
+        if (slot.timings.some((t) => /^[A-Z][a-z]?\d+$/.test(t))) {
           codes = slot.timings;
-        } else if (firstDay) {
-          codes = getSlotCodes(firstDay, slot.startTime, slot.endTime);
+        } else if (preferredDay) {
+          codes = getSlotCodes(preferredDay, slot.startTime, slot.endTime);
         }
 
         if (codes.length === 0) {
@@ -186,12 +187,12 @@ const RoomSelector = ({
             <p className="text-sm text-gray-600 mt-1">
                 {isReplace ? (
                   <>
-                    Move <strong>{formatCourseLabel(course)}</strong> to {slot.days.map(normalizeDayLabel).join(", ")} 
+                    Move <strong>{formatCourseLabel(course)}</strong> to {sourceSlot?.day ? normalizeDayLabel(sourceSlot.day) : slot.days.map(normalizeDayLabel).join(", ")} 
                     from {slot.startTime} to {slot.endTime}
                   </>
                 ) : (
                   <>
-                    Choose a room for {formatCourseLabel(course)} on {slot.days.map(normalizeDayLabel).join(", ")} from{" "}
+                    Choose a room for {formatCourseLabel(course)} on {sourceSlot?.day ? normalizeDayLabel(sourceSlot.day) : slot.days.map(normalizeDayLabel).join(", ")} from{" "}
                     {slot.startTime} to {slot.endTime}
                   </>
                 )}
@@ -226,7 +227,7 @@ const RoomSelector = ({
             </div>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Day</div>
-              <div className="text-sm font-bold text-gray-900">{slot.days.map(normalizeDayLabel).join(", ")}</div>
+              <div className="text-sm font-bold text-gray-900">{sourceSlot?.day ? normalizeDayLabel(sourceSlot.day) : slot.days.map(normalizeDayLabel).join(", ")}</div>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Time</div>

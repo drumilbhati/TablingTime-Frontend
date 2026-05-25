@@ -500,6 +500,7 @@ const ProfessorPreferences = () => {
 	const [query, setQuery] = useState("");
 	const [target, setTarget] = useState<User | null>(null);
 	const [showUpload, setShowUpload] = useState(false);
+	const [showResetAllConfirm, setShowResetAllConfirm] = useState(false);
 	const [strictMap, setStrictMap] = useState<
 		Record<string, { isStrict: boolean; status: string }>
 	>({});
@@ -578,20 +579,21 @@ const ProfessorPreferences = () => {
 	};
 
 	const handleResetAll = async () => {
-		if (!window.confirm("Reset ALL faculty preferences? This is permanent."))
-			return;
 		const id = toast.loading("Clearing system...");
 		try {
-			const faculty = users.filter((u) => u.role === "faculty");
-			await Promise.all(
-				faculty.map((u) =>
-					fetch(buildApiUrl("/api/professor-preferences"), {
-						method: "POST",
-						headers: { "Content-Type": "application/json" },
-						body: JSON.stringify({ professorId: u._id, rawInput: "" }),
-					}),
-				),
+			const token = localStorage.getItem("token");
+			const res = await fetch(
+				buildApiUrl("/api/professor-preferences/reset-all"),
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						...(token ? { Authorization: `Bearer ${token}` } : {}),
+					},
+				},
 			);
+			if (!res.ok) throw new Error("Failed to reset all preferences");
+			await fetchUsers();
 			toast.success("System reset complete.", { id });
 		} catch {
 			toast.error("Partial failure.", { id });
@@ -615,7 +617,7 @@ const ProfessorPreferences = () => {
 				</div>
 				<div className="flex gap-2">
 					<button
-						onClick={handleResetAll}
+						onClick={() => setShowResetAllConfirm(true)}
 						className="px-4 py-2 text-xs rounded-full bg-red-600 text-white border border-red-700 hover:bg-red-700 transition-colors inline-flex items-center justify-center gap-2"
 					>
 						<Trash2 size={14} /> Reset All
@@ -715,6 +717,45 @@ const ProfessorPreferences = () => {
 					onClose={() => setShowUpload(false)}
 					onSuccess={fetchUsers}
 				/>
+			)}
+			{showResetAllConfirm && (
+				<div
+					className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
+					onClick={() => setShowResetAllConfirm(false)}
+				>
+					<div
+						className="w-full max-w-md rounded-[2rem] bg-white p-8 shadow-2xl"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-red-50 text-red-600">
+							<Trash2 size={22} />
+						</div>
+						<h3 className="text-2xl font-black text-gray-900">
+							Reset all preferences?
+						</h3>
+						<p className="mt-2 text-sm leading-6 text-gray-500">
+							This will clear the scheduling preferences for every faculty member.
+							The change cannot be undone.
+						</p>
+						<div className="mt-8 flex gap-3">
+							<button
+								onClick={() => setShowResetAllConfirm(false)}
+								className="flex-1 rounded-full border border-gray-200 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-50"
+							>
+								Cancel
+							</button>
+							<button
+								onClick={() => {
+									setShowResetAllConfirm(false);
+									handleResetAll();
+								}}
+								className="flex-1 rounded-full bg-red-600 px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-red-700"
+							>
+								Reset All
+							</button>
+						</div>
+					</div>
+				</div>
 			)}
 		</div>
 	);

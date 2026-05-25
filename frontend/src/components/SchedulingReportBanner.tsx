@@ -50,7 +50,8 @@ const SchedulingReportBanner = ({
 	const [isUnscheduledExpanded, setIsUnscheduledExpanded] = useState(false);
 
 	const violationCount = report?.summary.totalViolations ?? 0;
-	const unscheduledCount = report?.summary.unscheduledCourses ?? 0;
+	const liveUnscheduledCount = courses.filter((c) => !(c.timeslots && c.timeslots.length > 0)).length;
+	const unscheduledCount = Math.max(report?.summary.unscheduledCourses ?? 0, liveUnscheduledCount);
 	const hasViolations = violationCount > 0;
 	const hasUnscheduled = unscheduledCount > 0;
 
@@ -161,7 +162,7 @@ const SchedulingReportBanner = ({
 							Unscheduled
 						</div>
 						<div className="mt-1 text-lg font-semibold text-gray-900 text-amber-600">
-							{report.summary.unscheduledCourses}
+							{unscheduledCount}
 						</div>
 					</div>
 					<div className="rounded-xl border border-white/70 bg-white/80 p-3">

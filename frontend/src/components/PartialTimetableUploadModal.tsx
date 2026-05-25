@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Upload } from "lucide-react";
+import { X, Upload, LoaderCircle, Sparkles } from "lucide-react";
 import { buildApiUrl } from "../lib/api";
 
 type UploadStatus =
@@ -86,7 +86,30 @@ export default function PartialTimetableUploadModal({ onClose, onSuccess }: Part
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl max-w-lg w-full flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div className="relative bg-white rounded-xl shadow-xl max-w-lg w-full flex flex-col" onClick={(e) => e.stopPropagation()}>
+        {status.type === "loading" && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/80 backdrop-blur-sm">
+            <div className="w-full max-w-sm rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-black text-white shadow-lg shadow-black/20">
+                <LoaderCircle size={28} className="animate-spin" />
+              </div>
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.2em] text-blue-700">
+                <Sparkles size={12} />
+                Upload running
+              </div>
+              <h4 className="mt-3 text-lg font-black text-gray-900">
+                Processing the timetable files
+              </h4>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                The server is validating the CSVs and updating the partial schedule.
+              </p>
+              <div className="mt-5 h-2 overflow-hidden rounded-full bg-gray-100">
+                <div className="h-full w-2/3 animate-pulse rounded-full bg-gradient-to-r from-black via-blue-500 to-emerald-400" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex justify-between items-start p-5 border-b border-gray-100">
           <div>
@@ -128,6 +151,7 @@ export default function PartialTimetableUploadModal({ onClose, onSuccess }: Part
                     setStatus({ type: "error", message: "Failed to read file" });
                   }
                 }}
+                disabled={isSubmitting}
                 className="block w-full text-sm text-gray-600 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200"
               />
             </div>
@@ -148,6 +172,7 @@ export default function PartialTimetableUploadModal({ onClose, onSuccess }: Part
                     setStatus({ type: "error", message: "Failed to read file" });
                   }
                 }}
+                disabled={isSubmitting}
                 className="block w-full text-sm text-gray-600 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-4 file:py-2 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200"
               />
             </div>
@@ -196,8 +221,8 @@ export default function PartialTimetableUploadModal({ onClose, onSuccess }: Part
             >
               {isSubmitting ? (
                 <>
-                  <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
-                  Uploading…
+                  <LoaderCircle size={14} className="animate-spin" />
+                  Processing…
                 </>
               ) : (
                 <>

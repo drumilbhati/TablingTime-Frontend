@@ -33,6 +33,7 @@ import ErrorState from "../components/ErrorState";
 import PartialTimetableUploadModal from "../components/PartialTimetableUploadModal";
 import { useSchedulingReport } from "../context/SchedulingReportContext";
 import { getCourseColors } from "../lib/courseColors";
+import { formatCourseLabel } from "../lib/courseLabels";
 
 type SchedulerStatus =
 	| { type: "idle" }
@@ -869,7 +870,7 @@ const ManualScheduler = () => {
 													<div
 														className={`font-bold text-sm leading-none ${colors.text}`}
 													>
-														{c.courseCode || c.courseId}
+														{formatCourseLabel(c)}
 													</div>
 													<div className="text-[10px] text-gray-500 mt-1.5 line-clamp-1">
 														{c.courseName}
@@ -983,7 +984,7 @@ const ManualScheduler = () => {
 																		className={`p-2.5 rounded-xl border border-gray-200/50 shadow-sm cursor-grab active:scale-[0.98] transition-all ${colors.bg} ${colors.text} hover:border-gray-300`}
 																	>
 																		<div className="font-bold text-[10px] leading-tight flex justify-between gap-2">
-																			<span>{c.courseCode || c.courseId}</span>
+																			<span>{formatCourseLabel(c)}</span>
 																			<button
 																				onClick={(e) => {
 																					e.stopPropagation();

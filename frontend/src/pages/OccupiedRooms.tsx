@@ -15,17 +15,17 @@ import {
 } from "../context/CoursesContext";
 import { useCourseModal } from "../context/CourseModalContext";
 import { getCourseColors } from "../lib/courseColors";
+import { formatCourseLabel } from "../lib/courseLabels";
 
 type RoomRef =
 	| string
 	| {
-			building?: string;
-			roomNumber?: string;
-			name?: string;
-			_id?: string;
-			slot?: string;
-	  };
-
+		building?: string;
+		roomNumber?: string;
+		name?: string;
+		_id?: string;
+		slot?: string;
+	};
 interface TimeslotRange {
 	startTime: string;
 	endTime: string;
@@ -287,15 +287,9 @@ const OccupiedRooms = () => {
 																							<div
 																								key={course._id}
 																								className={`w-8 h-8 rounded-xl border border-white flex items-center justify-center text-[9px] font-semibold uppercase tracking-normal ${palette.bg} ${palette.text} shadow-sm shadow-black/5`}
-																								title={
-																									course.courseCode ||
-																									course.courseId
-																								}
+																								title={formatCourseLabel(course)}
 																							>
-																								{String(
-																									course.courseCode ||
-																										course.courseId,
-																								).slice(0, 2)}
+																							{String(course.courseCode || course.courseId).slice(0, 2)}
 																							</div>
 																						);
 																					})}
@@ -427,7 +421,7 @@ const OccupiedRooms = () => {
 													<div
 														className={`font-bold text-lg leading-none ${palette.text}`}
 													>
-														{course.courseCode || course.courseId}
+														{formatCourseLabel(course)}
 													</div>
 													<span
 														className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider text-white ${palette.selectedBg}`}

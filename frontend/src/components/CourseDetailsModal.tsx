@@ -2,6 +2,7 @@ import { type Course } from "../context/CoursesContext";
 import { getCourseCredit } from "../lib/courseUtils";
 import { getCourseColors } from "../lib/courseColors";
 import { X, User, FileText, Calendar, Clock, MapPin, Pencil } from "lucide-react";
+import { formatCourseLabel, formatCourseSection } from "../lib/courseLabels";
 
 const DAY_FULL: Record<string, string> = {
 	Mon: "Monday",
@@ -35,14 +36,6 @@ const formatRooms = (rooms: (string | RoomInfo)[]) => {
 		})
 		.filter(Boolean);
 	return Array.from(new Set(valid)).join(", ");
-};
-
-const formatSection = (course: Course) => {
-	if (course.section) return `Section ${course.section}`;
-	if (course.sectionId) return `Section ${course.sectionId}`;
-	if (course.courseSectionId) return `Section ${course.courseSectionId}`;
-	if (course.displayCourseId) return course.displayCourseId;
-	return "Section unavailable";
 };
 
 export interface CourseDetailsModalProps {
@@ -94,7 +87,7 @@ export const CourseDetailsModal = ({
 								isSelected ? "text-white" : "text-gray-900"
 							}`}
 						>
-							{course.courseCode || course.courseId}
+							{formatCourseLabel(course)}
 						</h3>
 						<p
 							className={`text-sm font-bold mt-1 leading-relaxed ${
@@ -108,7 +101,7 @@ export const CourseDetailsModal = ({
 								isSelected ? "text-white/75" : "text-slate-400"
 							}`}
 						>
-							{formatSection(course)}
+							{formatCourseSection(course)}
 						</p>
 					</div>
 					<button

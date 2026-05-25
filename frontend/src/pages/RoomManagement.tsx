@@ -10,6 +10,7 @@ import schedulingService, {
 import { toast } from "sonner";
 import { useCourses } from "../context/CoursesContext";
 import { useCourseModal } from "../context/CourseModalContext";
+import { formatCourseLabel } from "../lib/courseLabels";
 
 const EMPTY_FORM: RoomUpsertPayload = {
 	roomNumber: "",
@@ -629,7 +630,7 @@ const RoomManagement = () => {
 												<option value="">Select course</option>
 												{courseOptions.map((course) => (
 													<option key={course._id} value={course.courseId}>
-														{course.courseCode || course.courseId}
+														{formatCourseLabel(course)}
 													</option>
 												))}
 											</select>

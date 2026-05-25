@@ -9,6 +9,7 @@ import {
 	User,
 } from "lucide-react";
 import { buildApiUrl } from "../lib/api";
+import { formatCourseLabel } from "../lib/courseLabels";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -164,7 +165,7 @@ const EnrolModal = ({ user, onClose }: { user: User; onClose: () => void }) => {
 							<option value="">Select course...</option>
 							{courses.map((c) => (
 								<option key={c._id} value={c.courseId}>
-									{c.courseCode || c.courseId}
+									{formatCourseLabel(c)}
 								</option>
 							))}
 						</select>

@@ -1,13 +1,11 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { useSchedulingReport } from "../context/SchedulingReportContext";
 
 const Navbar = () => {
 	const navigate = useNavigate();
 	const location = useLocation();
 	const { isAuthenticated, userRole, userName, authLoading, logout } =
 		useAuth();
-	const { hasVisibleReport } = useSchedulingReport();
 
 	const isActive = (path: string) => location.pathname === path;
 
@@ -85,12 +83,9 @@ const Navbar = () => {
 							</button>
 							<button
 								onClick={() => navigate("/scheduler")}
-								className={`${navButtonClass("/scheduler")} relative flex items-center gap-2`}
+								className={navButtonClass("/scheduler")}
 							>
 								Scheduler
-								{hasVisibleReport ? (
-									<span className="inline-flex h-2 w-2 rounded-full bg-red-500 shadow-sm" />
-								) : null}
 							</button>
 						</>
 					)}

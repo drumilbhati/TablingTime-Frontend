@@ -7,7 +7,9 @@ import {
 	ChevronDown,
 	ChevronRight,
 } from "lucide-react";
+import { useCourses } from "../context/CoursesContext";
 import type { SchedulingRunReport } from "../services/schedulingService";
+import { formatCourseLabel } from "../lib/courseLabels";
 
 interface SchedulingReportBannerProps {
 	report: SchedulingRunReport | null;
@@ -43,6 +45,7 @@ const SchedulingReportBanner = ({
 	report,
 	onRefresh,
 }: SchedulingReportBannerProps) => {
+	const { courses } = useCourses();
 	const [isViolationsExpanded, setIsViolationsExpanded] = useState(false);
 	const [isUnscheduledExpanded, setIsUnscheduledExpanded] = useState(false);
 
@@ -56,6 +59,28 @@ const SchedulingReportBanner = ({
 	}
 
 	const latestSource = formatSourceLabel(report?.schedulerOptions?.source);
+
+	const resolveCourseLabel = (
+		courseId: string,
+		fallbackCourseCode?: string,
+		fallbackCourseName?: string,
+	) => {
+		const matchedCourse = courses.find(
+			(course) =>
+				course.courseId === courseId ||
+				course.courseCode === courseId ||
+				course.displayCourseId === courseId ||
+				course.sectionId === courseId ||
+				course.courseSectionId === courseId ||
+				course.section === courseId,
+		);
+
+		if (matchedCourse) {
+			return formatCourseLabel(matchedCourse);
+		}
+
+		return fallbackCourseCode || fallbackCourseName || courseId;
+	};
 
 	return (
 		<section
@@ -184,7 +209,7 @@ const SchedulingReportBanner = ({
 											<div>
 												<div className="flex flex-wrap items-center gap-2">
 													<h3 className="text-sm font-semibold text-gray-900">
-														{violation.courseId}
+														{resolveCourseLabel(violation.courseId)}
 													</h3>
 													<span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700">
 														Professor {violation.professorId}
@@ -261,7 +286,11 @@ const SchedulingReportBanner = ({
 									>
 										<div className="flex items-start justify-between gap-2">
 											<h4 className="text-xs font-bold text-gray-900">
-												{course.courseId}
+												{resolveCourseLabel(
+													course.courseId,
+													course.courseCode,
+													course.courseName,
+												)}
 											</h4>
 											<span className="text-[10px] text-gray-500">
 												{course.courseType}

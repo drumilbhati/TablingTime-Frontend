@@ -3,6 +3,7 @@ import { useCourses } from "../context/CoursesContext";
 import { useCourseModal } from "../context/CourseModalContext";
 import ErrorState from "./ErrorState";
 import { getCourseColors } from "../lib/courseColors";
+import { formatCourseLabel } from "../lib/courseLabels";
 
 interface SidebarProps {
 	selectedCourse: string | null;
@@ -108,7 +109,7 @@ const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
 									<div
 										className={`font-bold text-sm leading-none mb-1 ${palette.text}`}
 									>
-										{course.courseCode || course.courseId}
+										{formatCourseLabel(course)}
 									</div>
 									<div className="text-[11px] font-medium leading-tight line-clamp-2 text-gray-500">
 										{course.courseName}

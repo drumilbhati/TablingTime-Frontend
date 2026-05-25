@@ -1,8 +1,8 @@
-import { useState } from "react";
 import { useCourses, type Course } from "../context/CoursesContext";
 import ErrorState from "./ErrorState";
 import { getCourseColors } from "../lib/courseColors";
 import { useCourseModal } from "../context/CourseModalContext";
+import { formatCourseLabel } from "../lib/courseLabels";
 
 interface TimetableProps {
 	selectedCourse: string | null;
@@ -173,7 +173,7 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 																onClick={() =>
 																	open(course, day, startTime, endTime)
 																}
-																title={`${course.courseCode || course.courseId} — ${course.courseName}`}
+																title={`${formatCourseLabel(course)} — ${course.courseName}`}
 																className={`w-full text-left rounded-lg border p-2 transition-all hover:scale-[1.01] active:scale-[0.99] ${colors.bg} ${colors.text} ${colors.border} ${colors.hoverBg} ${
 																	isSelected
 																		? "ring-2 ring-gray-900/10"
@@ -181,7 +181,7 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 																}`}
 															>
 																<div className="font-bold text-[11px] leading-tight mb-1">
-																	{course.courseCode || course.courseId}
+																	{formatCourseLabel(course)}
 																</div>
 																<div className="text-[10px] font-medium line-clamp-1 leading-tight text-gray-600">
 																	{course.courseName}

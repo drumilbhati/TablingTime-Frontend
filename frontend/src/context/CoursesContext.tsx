@@ -25,6 +25,8 @@ export interface Course {
 	courseSectionId?: string;
 	displayCourseId?: string;
 	Faculty: string;
+	toleranceCount?: number | string;
+	professorId?: string[];
 	Credits?: string | number;
 	credits?: string | number;
 	totalSections?: number;
@@ -82,6 +84,13 @@ const filterCoursesByRole = (
 
 	// Unauthenticated or role not yet resolved — show nothing.
 	return [];
+};
+
+const normalizeOptionalScalar = (
+	value: unknown,
+): string | number | undefined => {
+	if (typeof value === "string" || typeof value === "number") return value;
+	return undefined;
 };
 
 export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
@@ -162,16 +171,25 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
 				const Faculty = String(
 					baseCourse.Faculty ?? baseCourse["Faculty"] ?? "",
 				);
-				const credits =
-					baseCourse.credits ?? baseCourse.Credits ?? baseCourse["Credits"];
-				const theoryCredits =
+				const credits = normalizeOptionalScalar(
+					baseCourse.credits ?? baseCourse.Credits ?? baseCourse["Credits"],
+				);
+				const theoryCredits = normalizeOptionalScalar(
 					baseCourse.theoryCredits ??
-					baseCourse["Theory Credits"] ??
-					baseCourse["Theory Credit"];
-				const labCredits =
+						baseCourse["Theory Credits"] ??
+						baseCourse["Theory Credit"],
+				);
+				const labCredits = normalizeOptionalScalar(
 					baseCourse.labCredits ??
-					baseCourse["Lab Credits"] ??
-					baseCourse["Lab Credit"];
+						baseCourse["Lab Credits"] ??
+						baseCourse["Lab Credit"],
+				);
+				const toleranceCount = normalizeOptionalScalar(
+					baseCourse.toleranceCount ?? baseCourse["Tolerance Count"],
+				);
+				const professorId = Array.isArray(baseCourse.professorId)
+					? baseCourse.professorId.map((id) => String(id))
+					: [];
 
 				return {
 					...baseCourse,
@@ -190,6 +208,8 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
 					credits,
 					theoryCredits,
 					labCredits,
+					toleranceCount: toleranceCount ?? 0,
+					professorId,
 					timeslots,
 					room,
 					studentId,

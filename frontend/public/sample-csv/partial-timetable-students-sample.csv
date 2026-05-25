@@ -1,0 +1,3 @@
+courseId,courseCode,courseName,studentIds,numberOfSections
+CS101,CS 101,Introduction to Programming,student001;student002;student003,2
+MATH201,MATH 201,Linear Algebra,student004;student005,1

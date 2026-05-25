@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { X, Upload, LoaderCircle, Sparkles } from "lucide-react";
+import { X, Upload, LoaderCircle, Sparkles, Download } from "lucide-react";
 import { buildApiUrl } from "../lib/api";
 
 type UploadStatus =
@@ -16,8 +16,21 @@ type UploadStatus =
 
 interface PartialTimetableUploadModalProps {
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: () => void | Promise<void>;
 }
+
+const SAMPLE_FILES = [
+  {
+    label: "Schedule File",
+    href: "/sample-csv/partial-timetable-schedule-sample.csv",
+    columns: "courseId, credits, faculty, room, building, day, startTime, endTime",
+  },
+  {
+    label: "Student File",
+    href: "/sample-csv/partial-timetable-students-sample.csv",
+    columns: "courseId, courseCode, courseName, studentIds, numberOfSections",
+  },
+];
 
 export default function PartialTimetableUploadModal({ onClose, onSuccess }: PartialTimetableUploadModalProps) {
   const [scheduleFile, setScheduleFile] = useState<File | null>(null);
@@ -128,10 +141,19 @@ export default function PartialTimetableUploadModal({ onClose, onSuccess }: Part
         {/* Body */}
         <div className="p-5 space-y-4">
           <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3">
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Schedule File Columns</p>
-            <p className="mt-1 text-sm text-gray-700">courseId, credits, faculty, roomNumber, building, day, startTime, endTime</p>
-            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mt-3 mb-1">Student File Columns</p>
-            <p className="mt-1 text-sm text-gray-700">courseId, studentIds (semicolon separated)</p>
+            {SAMPLE_FILES.map((sample, index) => (
+              <div key={sample.label} className={index > 0 ? "mt-4" : ""}>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{sample.label} Columns</p>
+                <p className="mt-1 text-sm text-gray-700">{sample.columns}</p>
+                <a
+                  href={sample.href}
+                  download
+                  className="mt-2 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800"
+                >
+                  <Download size={12} /> Download sample CSV
+                </a>
+              </div>
+            ))}
           </div>
 
           <div className="space-y-4">

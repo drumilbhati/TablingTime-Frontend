@@ -19,12 +19,68 @@ export interface ManualSchedulingRequest {
 	prevStartTime?: string;
 	prevEndTime?: string;
 	prevRoomNumber?: string;
+	validateOnly?: boolean;
+	ignoreStudentConflict?: boolean;
+	ignoreProfessorConflict?: boolean;
+	ignoreConflicts?: boolean;
 }
 
 export type ManualSchedulingAction = "ADD" | "DELETE" | "REPLACE";
 
+export interface ManualScheduleProfessorDetail {
+	professorId: string;
+	name?: string;
+	email?: string;
+}
+
+export interface ManualScheduleStudentConflict {
+	conflictingCourseId?: string;
+	conflictingSectionId?: string;
+	conflictingSection?: string;
+	studentConflictCount?: number;
+	offendingStudents?: string[];
+	sharedSlots?: string[];
+}
+
+export interface ManualScheduleProfessorConflict {
+	conflictingCourseId?: string;
+	conflictingSectionId?: string;
+	conflictingSection?: string;
+	offendingProfessors?: string[];
+	offendingProfessorDetails?: ManualScheduleProfessorDetail[];
+	sharedSlots?: string[];
+}
+
+export interface ManualScheduleConflictDetails {
+	student?: {
+		hasStudentConflict?: boolean;
+		studentConflictCount?: number;
+		totalStudents?: number;
+		conflictPercentage?: number;
+		tolerance?: number;
+		conflicts?: ManualScheduleStudentConflict[];
+	};
+	professor?: {
+		hasProfessorConflict?: boolean;
+		professorConflictCount?: number;
+		offendingProfessors?: string[];
+		offendingProfessorDetails?: ManualScheduleProfessorDetail[];
+		conflicts?: ManualScheduleProfessorConflict[];
+	};
+}
+
 export interface SchedulingResponse {
 	message: string;
+	canSchedule?: boolean;
+	blockedBy?: string[];
+	status?: string;
+	assignedHours?: number;
+	requiredHours?: number;
+	conflictsIgnored?: {
+		student?: boolean;
+		professor?: boolean;
+	};
+	conflictDetails?: ManualScheduleConflictDetails;
 	course: {
 		_id: string;
 		courseId: string;
@@ -36,6 +92,18 @@ export interface SchedulingResponse {
 			endTime: string;
 		}>;
 	};
+}
+
+export class ManualSchedulingConflictError extends Error {
+	data: Partial<SchedulingResponse>;
+	status: number;
+
+	constructor(data: Partial<SchedulingResponse>, status: number) {
+		super(data.message || "Conflict detected for this time slot");
+		this.name = "ManualSchedulingConflictError";
+		this.data = data;
+		this.status = status;
+	}
 }
 
 export interface Room {
@@ -294,6 +362,22 @@ class SchedulingService {
 				throw new Error(`Unknown action type: ${actionType}`);
 		}
 
+		requestBody = {
+			...requestBody,
+			...(data.validateOnly !== undefined
+				? { validateOnly: data.validateOnly }
+				: {}),
+			...(data.ignoreStudentConflict !== undefined
+				? { ignoreStudentConflict: data.ignoreStudentConflict }
+				: {}),
+			...(data.ignoreProfessorConflict !== undefined
+				? { ignoreProfessorConflict: data.ignoreProfessorConflict }
+				: {}),
+			...(data.ignoreConflicts !== undefined
+				? { ignoreConflicts: data.ignoreConflicts }
+				: {}),
+		};
+
 		console.log(`[Frontend] Sending ${actionType} request:`, requestBody);
 
 		const response = await fetch(buildApiUrl("/api/manual-schedule"), {
@@ -305,24 +389,27 @@ class SchedulingService {
 			body: JSON.stringify(requestBody),
 		});
 
+		const responseData = await response.json().catch(() => null);
+
 		if (!response.ok) {
 			let errorMessage = `Failed to ${actionType.toLowerCase()} course: ${response.status}`;
 
-			try {
-				const errorData = await response.json();
-				errorMessage = errorData.message || errorMessage;
+			if (responseData?.conflictDetails || responseData?.canSchedule === false) {
+				throw new ManualSchedulingConflictError(responseData, response.status);
+			}
 
-				if (errorData.conflictingCourse) {
-					errorMessage += ` (Conflicts with: ${errorData.conflictingCourse})`;
-				}
-			} catch {
-				// Ignore parse errors and use fallback message.
+			if (responseData?.message) {
+				errorMessage = responseData.message;
+			}
+
+			if (responseData?.conflictingCourse) {
+				errorMessage += ` (Conflicts with: ${responseData.conflictingCourse})`;
 			}
 
 			throw new Error(errorMessage);
 		}
 
-		return response.json();
+		return responseData as SchedulingResponse;
 	}
 
 	async manualScheduleCourse(

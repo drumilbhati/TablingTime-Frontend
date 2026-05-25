@@ -90,6 +90,9 @@ const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
 					{filteredCourses.map((course) => {
 						const isSelected = selectedCourse === course.courseId;
 						const palette = getCourseColors(course);
+						const toleranceCount = Number(course.toleranceCount);
+						const shouldShowTolerance =
+							Number.isFinite(toleranceCount) && toleranceCount > 0;
 
 						return (
 								<li key={course._id}>
@@ -114,6 +117,11 @@ const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
 									<div className="text-[11px] font-medium leading-tight line-clamp-2 text-gray-500">
 										{course.courseName}
 									</div>
+									{shouldShowTolerance && (
+										<div className="mt-2 text-[9px] font-black uppercase tracking-wider text-amber-700">
+											Tolerance: {toleranceCount}
+										</div>
+									)}
 								</button>
 							</li>
 						);

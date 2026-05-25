@@ -143,6 +143,10 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 														const isSelected =
 															selectedCourse === course.courseId;
 														const colors = getCourseColors(course);
+														const toleranceCount = Number(course.toleranceCount);
+														const shouldShowTolerance =
+															Number.isFinite(toleranceCount) &&
+															toleranceCount > 0;
 														const roomLabel = getRoomLabelForSlot(
 															course,
 															day,
@@ -169,6 +173,11 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 																<div className="text-[10px] font-medium line-clamp-1 leading-tight text-gray-600">
 																	{course.courseName}
 																</div>
+																{shouldShowTolerance && (
+																	<div className="mt-1 text-[9px] font-black uppercase tracking-wider text-amber-700">
+																		Tolerance: {toleranceCount}
+																	</div>
+																)}
 																{roomLabel && (
 																	<div className="mt-1.5 flex items-center gap-1 text-[9px] font-semibold text-gray-500">
 																		<div className="w-1 h-1 rounded-full bg-current opacity-40" />

@@ -1,7 +1,16 @@
 import { type Course } from "../context/CoursesContext";
 import { getCourseCredit } from "../lib/courseUtils";
 import { getCourseColors } from "../lib/courseColors";
-import { X, User, FileText, Calendar, Clock, MapPin, Pencil } from "lucide-react";
+import {
+	AlertTriangle,
+	X,
+	User,
+	FileText,
+	Calendar,
+	Clock,
+	MapPin,
+	Pencil,
+} from "lucide-react";
 import { formatCourseLabel } from "../lib/courseLabels";
 import { getRoomLabelForSlot } from "../lib/courseRooms";
 
@@ -36,6 +45,9 @@ export const CourseDetailsModal = ({
 }: CourseDetailsModalProps) => {
 	const colors = getCourseColors(course);
 	const roomLabel = getRoomLabelForSlot(course, day, startTime, endTime);
+	const toleranceCount = Number(course.toleranceCount);
+	const shouldShowTolerance =
+		Number.isFinite(toleranceCount) && toleranceCount > 0;
 
 	return (
 		<div
@@ -117,6 +129,17 @@ export const CourseDetailsModal = ({
 								{course.studentId.length}
 							</div>
 						</div>
+						{shouldShowTolerance && (
+							<div className="p-4 bg-amber-50 rounded-2xl border border-amber-100">
+								<div className="flex items-center gap-1.5 label-caps mb-2 text-amber-700 opacity-70">
+									<AlertTriangle size={10} />
+									Tolerance
+								</div>
+								<div className="text-sm font-black text-amber-900">
+									{toleranceCount}
+								</div>
+							</div>
+						)}
 						<div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">
 							<div className="flex items-center justify-between label-caps mb-2 opacity-60">
 								<span className="flex items-center gap-1.5">

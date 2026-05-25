@@ -23,9 +23,12 @@ import { useCourseModal } from "../context/CourseModalContext";
 import SchedulingReportBanner from "../components/SchedulingReportBanner";
 import schedulingService from "../services/schedulingService";
 import type {
+	ManualScheduleConflictDetails,
 	ManualSchedulingAction,
 	ManualSchedulingRequest,
+	SchedulingResponse,
 } from "../services/schedulingService";
+import { ManualSchedulingConflictError } from "../services/schedulingService";
 import type {
 	CourseCategory,
 	ProfessorPreferenceMode,
@@ -226,6 +229,30 @@ const getScheduledComponentCount = (course: Course): number => {
 	).size;
 };
 
+const getToleranceCount = (course: Course): number => {
+	const count = Number(course.toleranceCount);
+	return Number.isFinite(count) ? count : 0;
+};
+
+const hasStudentConflict = (
+	details?: ManualScheduleConflictDetails,
+): boolean =>
+	Boolean(
+		details?.student?.hasStudentConflict ||
+			Number(details?.student?.studentConflictCount) > 0 ||
+			(details?.student?.conflicts?.length ?? 0) > 0,
+	);
+
+const hasProfessorConflict = (
+	details?: ManualScheduleConflictDetails,
+): boolean =>
+	Boolean(
+		details?.professor?.hasProfessorConflict ||
+			Number(details?.professor?.professorConflictCount) > 0 ||
+			(details?.professor?.conflicts?.length ?? 0) > 0 ||
+			(details?.professor?.offendingProfessorDetails?.length ?? 0) > 0,
+	);
+
 const formatElapsed = (seconds: number) => {
 	const mins = Math.floor(seconds / 60);
 	const secs = seconds % 60;
@@ -250,8 +277,6 @@ const getCourseScheduleState = (
 	return "scheduled";
 };
 
-type CourseScheduleState = ReturnType<typeof getCourseScheduleState>;
-
 interface CourseGroup {
 	key: string;
 	courseCode?: string;
@@ -264,6 +289,13 @@ interface CourseGroup {
 	partialSections: Course[];
 	scheduledSections: Course[];
 	searchText: string;
+}
+
+interface PendingManualSchedule {
+	actionType: ManualSchedulingAction;
+	data: ManualSchedulingRequest;
+	successMessage: string;
+	conflict: Partial<SchedulingResponse>;
 }
 
 const getCourseGroupKey = (course: Course) => {
@@ -366,6 +398,10 @@ const ManualScheduler = () => {
 	const { latestReport, refreshLatestReport, reportLoading } = useSchedulingReport();
 	const [displayCourses, setDisplayCourses] = useState<Course[]>([]);
 	const [slots, setSlots] = useState<Slot[]>([]);
+	const [pendingManualSchedule, setPendingManualSchedule] =
+		useState<PendingManualSchedule | null>(null);
+	const [ignoreStudentConflict, setIgnoreStudentConflict] = useState(false);
+	const [ignoreProfessorConflict, setIgnoreProfessorConflict] = useState(false);
 	const [status, setStatus] = useState<SchedulerStatus>({ type: "idle" });
 	const [schedulingError, setSchedulingError] = useState<string | null>(null);
 	const [schedulingSuccess, setSchedulingSuccess] = useState<string | null>(
@@ -506,18 +542,19 @@ const ManualScheduler = () => {
 		displayCourses,
 	]);
 
-	useEffect(() => {
-		const fetchData = async () => {
-			try {
-				const slotsData = await schedulingService.getAllSlots();
-				setSlots(slotsData);
-			} catch (err) {
-				console.warn("Failed to fetch slots:", err);
-				setSlots([]);
-			}
-		};
-		fetchData();
+	const refreshSlots = useCallback(async () => {
+		try {
+			const slotsData = await schedulingService.getAllSlots();
+			setSlots(slotsData);
+		} catch (err) {
+			console.warn("Failed to fetch slots:", err);
+			setSlots([]);
+		}
 	}, []);
+
+	useEffect(() => {
+		refreshSlots();
+	}, [refreshSlots]);
 
 	const handleAutoSchedule = useCallback(async () => {
 		setStatus({ type: "loading" });
@@ -569,15 +606,79 @@ const ManualScheduler = () => {
 			actionType: ManualSchedulingAction,
 			data: ManualSchedulingRequest,
 			successMessage: string,
+			options: {
+				skipValidation?: boolean;
+				ignoreStudentConflict?: boolean;
+				ignoreProfessorConflict?: boolean;
+			} = {},
 		) => {
 			setIsScheduling(true);
 			try {
-				await schedulingService.handleManualScheduling(actionType, data);
-				setSchedulingSuccess(successMessage);
-				await refetch();
-				await refreshLatestReport();
+				if (
+					!options.skipValidation &&
+					(actionType === "ADD" || actionType === "REPLACE")
+				) {
+					const validationResponse =
+						await schedulingService.handleManualScheduling(actionType, {
+							...data,
+							validateOnly: true,
+						});
+					if (
+						validationResponse.canSchedule === false ||
+						hasStudentConflict(validationResponse.conflictDetails) ||
+						hasProfessorConflict(validationResponse.conflictDetails)
+					) {
+						setPendingManualSchedule({
+							actionType,
+							data,
+							successMessage,
+							conflict: validationResponse,
+						});
+						setIgnoreStudentConflict(false);
+						setIgnoreProfessorConflict(false);
+						return false;
+					}
+				}
+
+				const response = await schedulingService.handleManualScheduling(
+					actionType,
+					{
+						...data,
+						...(options.ignoreStudentConflict !== undefined
+							? { ignoreStudentConflict: options.ignoreStudentConflict }
+							: {}),
+						...(options.ignoreProfessorConflict !== undefined
+							? { ignoreProfessorConflict: options.ignoreProfessorConflict }
+							: {}),
+					},
+				);
+				const ignoredMessages = [
+					response.conflictsIgnored?.student
+						? "ignored student conflict"
+						: "",
+					response.conflictsIgnored?.professor
+						? "ignored faculty conflict"
+						: "",
+				].filter(Boolean);
+				setSchedulingSuccess(
+					ignoredMessages.length
+						? `Scheduled with ${ignoredMessages.join(" and ")}.`
+						: successMessage,
+				);
+				await Promise.all([refetch(), refreshLatestReport(), refreshSlots()]);
 				return true;
 			} catch (err) {
+				if (err instanceof ManualSchedulingConflictError) {
+					setPendingManualSchedule({
+						actionType,
+						data,
+						successMessage,
+						conflict: err.data,
+					});
+					setIgnoreStudentConflict(false);
+					setIgnoreProfessorConflict(false);
+					return false;
+				}
 				setSchedulingError(
 					err instanceof Error
 						? err.message
@@ -588,7 +689,7 @@ const ManualScheduler = () => {
 				setIsScheduling(false);
 			}
 		},
-		[refetch, refreshLatestReport],
+		[refetch, refreshLatestReport, refreshSlots],
 	);
 
 	const handleDeleteCourseConfirm = async () => {
@@ -628,6 +729,30 @@ const ManualScheduler = () => {
 			setShowDeleteConfirm(false);
 			setDeletingCourseId(null);
 			setDeletingSlotInfo(null);
+		}
+	};
+
+	const handleConfirmConflictSchedule = async () => {
+		if (!pendingManualSchedule) return;
+		const wasSuccessful = await handleManualScheduling(
+			pendingManualSchedule.actionType,
+			pendingManualSchedule.data,
+			pendingManualSchedule.successMessage,
+			{
+				skipValidation: true,
+				ignoreStudentConflict,
+				ignoreProfessorConflict,
+			},
+		);
+
+		if (wasSuccessful) {
+			setPendingManualSchedule(null);
+			setIgnoreStudentConflict(false);
+			setIgnoreProfessorConflict(false);
+			setShowRoomSelector(false);
+			setDraggedCourse(null);
+		} else if (!ignoreStudentConflict && !ignoreProfessorConflict) {
+			toast.error("Conflict still blocks scheduling without an ignore option.");
 		}
 	};
 
@@ -780,7 +905,7 @@ const ManualScheduler = () => {
 		);
 
 		if (roomSelectorIsReplace && roomSelectorSource) {
-			await handleManualScheduling(
+			const wasSuccessful = await handleManualScheduling(
 				"REPLACE",
 				{
 					courseId: roomSelectorCourse.courseId,
@@ -795,8 +920,9 @@ const ManualScheduler = () => {
 				},
 				"Course moved successfully!",
 			);
+			if (!wasSuccessful) return;
 		} else {
-			await handleManualScheduling(
+			const wasSuccessful = await handleManualScheduling(
 				"ADD",
 				{
 					courseId: roomSelectorCourse.courseId,
@@ -807,6 +933,7 @@ const ManualScheduler = () => {
 				},
 				"Course added successfully!",
 			);
+			if (!wasSuccessful) return;
 		}
 		setShowRoomSelector(false);
 		setDraggedCourse(null);
@@ -823,6 +950,21 @@ const ManualScheduler = () => {
 
 	const timeslots = getUniqueTimeslots();
 	const isInitialPageLoading = (coursesLoading || reportLoading) && status.type !== "loading" && !isScheduling;
+	const conflictDetails = pendingManualSchedule?.conflict.conflictDetails;
+	const studentConflictExists = hasStudentConflict(conflictDetails);
+	const professorConflictExists = hasProfessorConflict(conflictDetails);
+	const resolveConflictCourseName = (courseId?: string) => {
+		if (!courseId) return "Conflicting course";
+		const matchedCourse = displayCourses.find(
+			(course) =>
+				course.courseId === courseId ||
+				course.courseCode === courseId ||
+				course.displayCourseId === courseId ||
+				course.courseSectionId === courseId ||
+				course.sectionId === courseId,
+		);
+		return matchedCourse?.courseName || matchedCourse?.courseCode || courseId;
+	};
 
 	return (
 		<div className="flex flex-col min-h-[calc(100svh-73px)] bg-white">
@@ -1121,6 +1263,11 @@ const ManualScheduler = () => {
 															? `${sectionCount} sessions`
 															: `${sectionCount} sections`}
 												</div>
+												{getToleranceCount(representative) > 0 && (
+													<div className="mt-2 inline-flex rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700">
+														Tolerance: {getToleranceCount(representative)}
+													</div>
+												)}
 												<div className="mt-3 flex items-center gap-3">
 													<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
 														<Users size={10} /> {representative.studentId.length}
@@ -1256,6 +1403,11 @@ const ManualScheduler = () => {
 																		<div className="text-[9px] opacity-60 truncate mt-1">
 																			{c.courseName}
 																		</div>
+																		{getToleranceCount(c) > 0 && (
+																			<div className="mt-1 text-[9px] font-black uppercase tracking-wider text-amber-700">
+																				Tolerance: {getToleranceCount(c)}
+																			</div>
+																		)}
 																	</div>
 																);
 															})}
@@ -1290,6 +1442,190 @@ const ManualScheduler = () => {
 				isReplace={roomSelectorIsReplace}
 				sourceSlot={roomSelectorSource}
 			/>
+
+			{pendingManualSchedule && (
+				<div className="fixed inset-0 bg-black/45 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+					<div
+						className="bg-white rounded-[2rem] shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+						onClick={(e) => e.stopPropagation()}
+					>
+						<div className="p-6 border-b border-amber-100 bg-amber-50">
+							<div className="flex items-start gap-3">
+								<div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+									<AlertTriangle size={20} />
+								</div>
+								<div>
+									<h3 className="section-title text-amber-950">
+										Conflict detected
+									</h3>
+									<p className="body-sm mt-1 text-amber-800">
+										Review the conflict summary before scheduling this session.
+									</p>
+								</div>
+							</div>
+						</div>
+
+						<div className="p-6 space-y-5 overflow-y-auto">
+							{studentConflictExists && (
+								<div className="rounded-2xl border border-amber-100 bg-white p-4">
+									<div className="flex items-center justify-between gap-4">
+										<div>
+											<div className="label-caps text-amber-700">
+												Student conflict
+											</div>
+											<div className="mt-1 text-sm font-black text-gray-900">
+												Student conflict count:{" "}
+												{conflictDetails?.student?.studentConflictCount ?? 0}
+											</div>
+										</div>
+										{conflictDetails?.student?.totalStudents !== undefined && (
+											<div className="text-right text-[10px] font-bold uppercase tracking-widest text-gray-400">
+												{conflictDetails.student.totalStudents} students total
+											</div>
+										)}
+									</div>
+									{(conflictDetails?.student?.conflicts?.length ?? 0) > 0 && (
+										<div className="mt-4 space-y-2">
+											{conflictDetails?.student?.conflicts?.map(
+												(conflict, index) => (
+													<div
+														key={`${conflict.conflictingCourseId ?? "student"}-${index}`}
+														className="rounded-xl bg-amber-50/70 px-3 py-2 text-xs text-amber-950"
+													>
+														<div className="font-bold">
+															{resolveConflictCourseName(
+																conflict.conflictingCourseId,
+															)}
+															{conflict.conflictingSection ||
+															conflict.conflictingSectionId
+																? ` · Section ${conflict.conflictingSection ?? conflict.conflictingSectionId}`
+																: ""}
+														</div>
+														<div className="mt-1 text-amber-800">
+															{conflict.studentConflictCount ?? 0} students
+														</div>
+													</div>
+												),
+											)}
+										</div>
+									)}
+									<label className="mt-4 flex items-center gap-3 rounded-xl border border-amber-100 bg-amber-50/60 px-3 py-2 text-xs font-bold text-amber-950">
+										<input
+											type="checkbox"
+											checked={ignoreStudentConflict}
+											onChange={(e) =>
+												setIgnoreStudentConflict(e.target.checked)
+											}
+											className="h-4 w-4 accent-amber-600"
+										/>
+										Ignore student conflict
+									</label>
+								</div>
+							)}
+
+							{professorConflictExists && (
+								<div className="rounded-2xl border border-red-100 bg-white p-4">
+									<div className="label-caps text-red-700">
+										Faculty conflict
+									</div>
+									<div className="mt-1 text-sm font-black text-gray-900">
+										Faculty conflict count:{" "}
+										{conflictDetails?.professor?.professorConflictCount ?? 0}
+									</div>
+									<div className="mt-3 flex flex-wrap gap-2">
+										{(
+											conflictDetails?.professor
+												?.offendingProfessorDetails ?? []
+										).map((professor) => (
+											<div
+												key={professor.professorId}
+												className="rounded-xl bg-red-50 px-3 py-2 text-xs text-red-950"
+											>
+												<div className="font-bold">
+													{professor.name || professor.professorId}
+												</div>
+												<div className="text-red-700">
+													{professor.email || professor.professorId}
+												</div>
+											</div>
+										))}
+										{(conflictDetails?.professor?.offendingProfessorDetails
+											?.length ?? 0) === 0 &&
+											(conflictDetails?.professor?.offendingProfessors ?? []).map(
+												(professorId) => (
+													<div
+														key={professorId}
+														className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-950"
+													>
+														{professorId}
+													</div>
+												),
+											)}
+									</div>
+									{(conflictDetails?.professor?.conflicts?.length ?? 0) >
+										0 && (
+										<div className="mt-4 space-y-2">
+											{conflictDetails?.professor?.conflicts?.map(
+												(conflict, index) => (
+													<div
+														key={`${conflict.conflictingCourseId ?? "faculty"}-${index}`}
+														className="rounded-xl bg-red-50/70 px-3 py-2 text-xs text-red-950"
+													>
+														<div className="font-bold">
+															{conflict.conflictingCourseId || "Conflicting course"}
+															{conflict.conflictingSection ||
+															conflict.conflictingSectionId
+																? ` · Section ${conflict.conflictingSection ?? conflict.conflictingSectionId}`
+																: ""}
+														</div>
+														{conflict.sharedSlots?.length ? (
+															<div className="mt-1 text-red-700">
+																Shared slots: {conflict.sharedSlots.join(", ")}
+															</div>
+														) : null}
+													</div>
+												),
+											)}
+										</div>
+									)}
+									<label className="mt-4 flex items-center gap-3 rounded-xl border border-red-100 bg-red-50/60 px-3 py-2 text-xs font-bold text-red-950">
+										<input
+											type="checkbox"
+											checked={ignoreProfessorConflict}
+											onChange={(e) =>
+												setIgnoreProfessorConflict(e.target.checked)
+											}
+											className="h-4 w-4 accent-red-600"
+										/>
+										Ignore faculty conflict
+									</label>
+								</div>
+							)}
+						</div>
+
+						<div className="p-5 border-t border-gray-100 bg-gray-50 flex flex-col gap-2 sm:flex-row sm:justify-end">
+							<button
+								onClick={() => {
+									setPendingManualSchedule(null);
+									setIgnoreStudentConflict(false);
+									setIgnoreProfessorConflict(false);
+								}}
+								className="btn-outline px-5 py-3 text-xs"
+								disabled={isScheduling}
+							>
+								Cancel
+							</button>
+							<button
+								onClick={handleConfirmConflictSchedule}
+								disabled={isScheduling}
+								className="btn-primary px-6 py-3 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+							>
+								{isScheduling ? "Scheduling..." : "Confirm Schedule"}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 
 			{showDeleteConfirm && (
 				<div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">

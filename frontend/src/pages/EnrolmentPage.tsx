@@ -5,11 +5,13 @@ import {
 	UserPlus,
 	Search,
 	Upload,
+	Download,
 	FileText,
 	User,
 } from "lucide-react";
 import { buildApiUrl } from "../lib/api";
 import { formatCourseLabel } from "../lib/courseLabels";
+import PartialTimetableUploadModal from "../components/PartialTimetableUploadModal";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -43,7 +45,8 @@ type UploadConfig = {
 	title: string;
 	description: string;
 	endpoint: string;
-	columns: string;
+	columns: string[];
+	sampleHref: string;
 };
 
 const CSV_UPLOADS: UploadConfig[] = [
@@ -52,28 +55,66 @@ const CSV_UPLOADS: UploadConfig[] = [
 		title: "Courses",
 		description: "Create course catalog entries in bulk.",
 		endpoint: "/api/admin/upload/courses",
-		columns: "courseId, credits, courseSchool, courseType",
+		columns: [
+			"courseId",
+			"credits",
+			"courseSchool",
+			"courseType",
+			"numberOfSections",
+		],
+		sampleHref: "/sample-csv/courses-sample.csv",
 	},
 	{
 		id: "rooms",
 		title: "Rooms",
 		description: "Add room inventory in bulk.",
 		endpoint: "/api/admin/upload/rooms",
-		columns: "roomNumber, building, type, capacity",
+		columns: ["roomNumber", "building", "type", "capacity"],
+		sampleHref: "/sample-csv/rooms-sample.csv",
 	},
 	{
 		id: "student-enrolments",
 		title: "Students",
 		description: "Enroll students into sections.",
 		endpoint: "/api/admin/upload/enroll-students",
-		columns: "studentId, courseId, semester",
+		columns: ["studentId", "courseId", "semester"],
+		sampleHref: "/sample-csv/students-sample.csv",
 	},
 	{
 		id: "professor-enrolments",
 		title: "Faculty",
 		description: "Assign faculty to course sections.",
 		endpoint: "/api/admin/upload/enroll-professors",
-		columns: "professorId, courseId, semester",
+		columns: ["professorId", "courseId", "semester"],
+		sampleHref: "/sample-csv/faculty-sample.csv",
+	},
+];
+
+const PARTIAL_TIMETABLE_SAMPLES = [
+	{
+		label: "Schedule file",
+		href: "/sample-csv/partial-timetable-schedule-sample.csv",
+		columns: [
+			"courseId",
+			"credits",
+			"faculty",
+			"room",
+			"building",
+			"day",
+			"startTime",
+			"endTime",
+		],
+	},
+	{
+		label: "Student file",
+		href: "/sample-csv/partial-timetable-students-sample.csv",
+		columns: [
+			"courseId",
+			"courseCode",
+			"courseName",
+			"studentIds",
+			"numberOfSections",
+		],
 	},
 ];
 
@@ -89,7 +130,7 @@ const SEMESTERS = [
 // ─── Enrol Modal ─────────────────────────────────────────────────────────────
 
 const EnrolModal = ({ user, onClose }: { user: User; onClose: () => void }) => {
-	const { courses } = useCourses();
+	const { courses, refetch } = useCourses();
 	const [selectedCourseId, setSelectedCourseId] = useState("");
 	const [selectedSemester, setSelectedSemester] = useState(SEMESTERS[3]);
 	const [status, setStatus] = useState<EnrolStatus>({ type: "idle" });
@@ -121,6 +162,7 @@ const EnrolModal = ({ user, onClose }: { user: User; onClose: () => void }) => {
 				body: JSON.stringify(body),
 			});
 			if (!res.ok) throw new Error("Conflict or error");
+			await refetch();
 			setStatus({ type: "success", message: "Enrolment successful." });
 			setTimeout(onClose, 1000);
 		} catch {
@@ -218,11 +260,13 @@ const EnrolModal = ({ user, onClose }: { user: User; onClose: () => void }) => {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const EnrolmentPage = () => {
+	const { refetch: refetchCourses } = useCourses();
 	const [users, setUsers] = useState<User[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [query, setQuery] = useState("");
 	const [role, setRole] = useState("all");
 	const [target, setTarget] = useState<User | null>(null);
+	const [showPartialUploadDialog, setShowPartialUploadDialog] = useState(false);
 
 	const fetchUsers = async () => {
 		setLoading(true);
@@ -272,6 +316,13 @@ const EnrolmentPage = () => {
 					failed: data.failed,
 					errors: data.errors || [],
 				});
+				if (
+					config.id === "courses" ||
+					config.id === "student-enrolments" ||
+					config.id === "professor-enrolments"
+				) {
+					await refetchCourses();
+				}
 			} catch {
 				setStat({ type: "error", message: "Failed." });
 			}
@@ -282,6 +333,28 @@ const EnrolmentPage = () => {
 					<FileText size={16} className="text-gray-400" /> {config.title}
 				</h3>
 				<p className="body-sm text-gray-500 mt-1">{config.description}</p>
+				<div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
+					<div className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+						Required columns
+					</div>
+					<div className="mt-2 flex flex-wrap gap-1.5">
+						{config.columns.map((column) => (
+							<span
+								key={column}
+								className="rounded-md bg-white px-2 py-1 text-[10px] font-bold text-gray-700 border border-gray-100"
+							>
+								{column}
+							</span>
+						))}
+					</div>
+					<a
+						href={config.sampleHref}
+						download
+						className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800"
+					>
+						<Download size={12} /> Download sample CSV
+					</a>
+				</div>
 				<div className="mt-4 flex-1">
 					<input
 						type="file"
@@ -306,6 +379,53 @@ const EnrolmentPage = () => {
 		);
 	};
 
+	const PartialUploadCard = () => (
+		<div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm flex flex-col lg:col-span-2">
+			<h3 className="font-bold text-gray-900 flex items-center gap-2">
+				<FileText size={16} className="text-gray-400" /> Partial / Incremental
+				Timetable
+			</h3>
+			<p className="body-sm text-gray-500 mt-1">
+				Requires two CSV files: scheduleFile and studentFile.
+			</p>
+			<div className="mt-4 grid gap-3 sm:grid-cols-2">
+				{PARTIAL_TIMETABLE_SAMPLES.map((sample) => (
+					<div
+						key={sample.label}
+						className="rounded-lg border border-gray-100 bg-gray-50 p-3"
+					>
+						<div className="text-[10px] font-black uppercase tracking-widest text-gray-400">
+							{sample.label} columns
+						</div>
+						<div className="mt-2 flex flex-wrap gap-1.5">
+							{sample.columns.map((column) => (
+								<span
+									key={column}
+									className="rounded-md bg-white px-2 py-1 text-[10px] font-bold text-gray-700 border border-gray-100"
+								>
+									{column}
+								</span>
+							))}
+						</div>
+						<a
+							href={sample.href}
+							download
+							className="mt-3 inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800"
+						>
+							<Download size={12} /> Download sample CSV
+						</a>
+					</div>
+				))}
+			</div>
+			<button
+				onClick={() => setShowPartialUploadDialog(true)}
+				className="mt-4 btn-primary py-2 text-xs w-full"
+			>
+				<Upload size={14} /> Upload Partial Timetable
+			</button>
+		</div>
+	);
+
 	return (
 		<div className="flex min-h-[calc(100svh-73px)] flex-col bg-white">
 			<div className="px-6 py-6 border-b border-gray-100 bg-white">
@@ -321,6 +441,7 @@ const EnrolmentPage = () => {
 						{CSV_UPLOADS.map((c) => (
 							<CsvCard key={c.id} config={c} />
 						))}
+						<PartialUploadCard />
 					</div>
 
 					<div className="flex justify-between items-center mb-6">
@@ -396,6 +517,15 @@ const EnrolmentPage = () => {
 			</div>
 
 			{target && <EnrolModal user={target} onClose={() => setTarget(null)} />}
+			{showPartialUploadDialog && (
+				<PartialTimetableUploadModal
+					onClose={() => setShowPartialUploadDialog(false)}
+					onSuccess={async () => {
+						setShowPartialUploadDialog(false);
+						await refetchCourses();
+					}}
+				/>
+			)}
 		</div>
 	);
 };

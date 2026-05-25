@@ -32,6 +32,11 @@ const getSectionLabel = (section: Section) => {
 	return "Section -";
 };
 
+const getToleranceCount = (course: Section): number => {
+	const count = Number(course.toleranceCount);
+	return Number.isFinite(count) ? count : 0;
+};
+
 const CoursesBySchool = () => {
 	const [school, setSchool] = useState<(typeof SCHOOL_OPTIONS)[number]>(
 		SCHOOL_OPTIONS[0],
@@ -141,6 +146,10 @@ const CoursesBySchool = () => {
 		return resolved ?? group.sections.length;
 	};
 
+	const resolveGroupTolerance = (group: CourseGroup) => {
+		return Math.max(0, ...group.sections.map(getToleranceCount));
+	};
+
 	const handleSaveSections = async (courseId: string, baseValue: number) => {
 		const raw = sectionEdits[courseId];
 		const parsed = Number(raw);
@@ -235,6 +244,7 @@ const CoursesBySchool = () => {
 									<th className="px-4 py-3 text-left">Type</th>
 									<th className="px-4 py-3 text-left">Faculty</th>
 									<th className="px-4 py-3 text-left">School</th>
+									<th className="px-4 py-3 text-left">Tolerance</th>
 									<th className="px-4 py-3 text-left">Sections</th>
 										<th className="px-4 py-3 text-left">Total Sections</th>
 								</tr>
@@ -254,6 +264,11 @@ const CoursesBySchool = () => {
 											<td className="px-4 py-3 text-gray-500">{g.courseType || "-"}</td>
 											<td className="px-4 py-3 text-gray-500">{g.Faculty || "-"}</td>
 											<td className="px-4 py-3 text-gray-500">{g.courseSchool || school}</td>
+											<td className="px-4 py-3 text-gray-500">
+												{resolveGroupTolerance(g) > 0
+													? `Tolerance: ${resolveGroupTolerance(g)}`
+													: "-"}
+											</td>
 													<td className="px-4 py-3 text-gray-700">{g.sections.length}</td>
 													<td className="px-4 py-3">
 														{(() => {
@@ -309,7 +324,7 @@ const CoursesBySchool = () => {
 
 										{expandedCourse === g.courseId && (
 											<tr className="bg-gray-50">
-												<td colSpan={7} className="px-4 py-4">
+												<td colSpan={8} className="px-4 py-4">
 													<div className="overflow-x-auto">
 														<table className="w-full text-sm">
 															<thead className="text-xs text-gray-400 uppercase tracking-widest">
@@ -317,6 +332,7 @@ const CoursesBySchool = () => {
 																	<th className="px-3 py-2 text-left">Section</th>
 																	<th className="px-3 py-2 text-left">Professors</th>
 																	<th className="px-3 py-2 text-left">Students</th>
+																	<th className="px-3 py-2 text-left">Tolerance</th>
 																	<th className="px-3 py-2 text-left">Allocated</th>
 																	<th className="px-3 py-2 text-left">Timeslots</th>
 																</tr>
@@ -339,6 +355,11 @@ const CoursesBySchool = () => {
 																		</td>
 																		<td className="px-3 py-2">{(s.professorId || []).length || "-"}</td>
 																		<td className="px-3 py-2">{(s.studentId || []).length || "-"}</td>
+																		<td className="px-3 py-2">
+																			{getToleranceCount(s) > 0
+																				? `Tolerance: ${getToleranceCount(s)}`
+																				: "-"}
+																		</td>
 																		<td className="px-3 py-2">{s.isAllocated ? "Yes" : "No"}</td>
 																		<td className="px-3 py-2">
 																			<button

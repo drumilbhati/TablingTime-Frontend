@@ -161,6 +161,9 @@ const RoomSelector = ({
     return roomsByBuilding[selectedBuilding] || [];
   }, [selectedBuilding, roomsByBuilding]);
 
+  const toleranceCount = Number(course?.toleranceCount);
+  const shouldShowTolerance = Number.isFinite(toleranceCount) && toleranceCount > 0;
+
   if (!isReady || !course || !slot) {
     return null;
   }
@@ -234,6 +237,12 @@ const RoomSelector = ({
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Students</div>
               <div className="text-sm font-bold text-gray-900">{course.studentId.length}</div>
             </div>
+            {shouldShowTolerance && (
+              <div className="p-3 bg-amber-50 rounded-lg border border-amber-100">
+                <div className="text-[10px] text-amber-700 font-bold uppercase tracking-wider mb-1">Tolerance</div>
+                <div className="text-sm font-bold text-amber-900">{toleranceCount}</div>
+              </div>
+            )}
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Day</div>
               <div className="text-sm font-bold text-gray-900">{sourceSlot?.day ? normalizeDayLabel(sourceSlot.day) : slot.days.map(normalizeDayLabel).join(", ")}</div>

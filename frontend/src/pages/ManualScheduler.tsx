@@ -459,6 +459,8 @@ const ManualScheduler = () => {
 	const isDragging = useRef(false);
 	const autoScrollFrame = useRef<number | null>(null);
 	const autoScrollVelocity = useRef({ x: 0, y: 0 });
+	const viewportAutoScrollFrame = useRef<number | null>(null);
+	const viewportAutoScrollVelocity = useRef(0);
 
 	useEffect(() => {
 		if (schedulingError) {
@@ -514,6 +516,14 @@ const ManualScheduler = () => {
 		}
 	}, []);
 
+	const stopViewportAutoScroll = useCallback(() => {
+		viewportAutoScrollVelocity.current = 0;
+		if (viewportAutoScrollFrame.current !== null) {
+			window.cancelAnimationFrame(viewportAutoScrollFrame.current);
+			viewportAutoScrollFrame.current = null;
+		}
+	}, []);
+
 	const startAutoScroll = useCallback(() => {
 		if (autoScrollFrame.current !== null) return;
 
@@ -533,29 +543,62 @@ const ManualScheduler = () => {
 		autoScrollFrame.current = window.requestAnimationFrame(tick);
 	}, []);
 
+	const startViewportAutoScroll = useCallback(() => {
+		if (viewportAutoScrollFrame.current !== null) return;
+
+		const tick = () => {
+			const speed = viewportAutoScrollVelocity.current;
+			if (!isDragging.current || speed === 0) {
+				viewportAutoScrollFrame.current = null;
+				return;
+			}
+
+			window.scrollBy({ top: speed, left: 0, behavior: "auto" });
+			viewportAutoScrollFrame.current = window.requestAnimationFrame(tick);
+		};
+
+		viewportAutoScrollFrame.current = window.requestAnimationFrame(tick);
+	}, []);
+
 	const updateDragAutoScroll = useCallback(
 		(clientX: number, clientY: number) => {
 			const container = tableContainerRef.current;
-			if (!container || (clientX === 0 && clientY === 0)) return;
+			if (clientX === 0 && clientY === 0) return;
+			if (!container) return;
 
 			const rect = container.getBoundingClientRect();
-			const edgeSize = 120;
-			const maxSpeed = 24;
+			const horizontalEdgeSize = 120;
+			const bottomActivationY = rect.top + rect.height * 0.45;
+			const topActivationY = rect.top + rect.height * 0.2;
+			const maxSpeed = 12;
+			const minSpeed = 3;
 			const clamp = (value: number) =>
 				Math.max(-maxSpeed, Math.min(maxSpeed, value));
 			let x = 0;
 			let y = 0;
 
-			if (clientX > rect.right - edgeSize) {
-				x = clamp(((clientX - (rect.right - edgeSize)) / edgeSize) * maxSpeed);
-			} else if (clientX < rect.left + edgeSize) {
-				x = clamp(-(((rect.left + edgeSize - clientX) / edgeSize) * maxSpeed));
+			if (clientX > rect.right - horizontalEdgeSize) {
+				x = clamp(
+					((clientX - (rect.right - horizontalEdgeSize)) /
+						horizontalEdgeSize) *
+						maxSpeed,
+				);
+			} else if (clientX < rect.left + horizontalEdgeSize) {
+				x = clamp(
+					-(((rect.left + horizontalEdgeSize - clientX) /
+						horizontalEdgeSize) *
+						maxSpeed),
+				);
 			}
 
-			if (clientY > rect.bottom - edgeSize) {
-				y = clamp(((clientY - (rect.bottom - edgeSize)) / edgeSize) * maxSpeed);
-			} else if (clientY < rect.top + edgeSize) {
-				y = clamp(-(((rect.top + edgeSize - clientY) / edgeSize) * maxSpeed));
+			// Start downward auto-scroll from lower half of the timetable area.
+			if (clientY > bottomActivationY) {
+				const ratio =
+					(clientY - bottomActivationY) / (rect.bottom - bottomActivationY);
+				y = clamp(minSpeed + ratio * (maxSpeed - minSpeed));
+			} else if (clientY < topActivationY) {
+				const ratio = (topActivationY - clientY) / (topActivationY - rect.top);
+				y = clamp(-(minSpeed + ratio * (maxSpeed - minSpeed)));
 			}
 
 			autoScrollVelocity.current = { x, y };
@@ -565,14 +608,103 @@ const ManualScheduler = () => {
 		[startAutoScroll, stopAutoScroll],
 	);
 
+	const updateViewportAutoScroll = useCallback(
+		(clientY: number) => {
+			if (clientY === 0) return;
+
+			const height = window.innerHeight;
+			const bottomActivationY = height * 0.45;
+			const topActivationY = height * 0.2;
+			const maxSpeed = 10;
+			const minSpeed = 3;
+			let nextSpeed = 0;
+
+			if (clientY > bottomActivationY) {
+				const ratio = (clientY - bottomActivationY) / (height - bottomActivationY);
+				nextSpeed = minSpeed + ratio * (maxSpeed - minSpeed);
+			} else if (clientY < topActivationY) {
+				const ratio = (topActivationY - clientY) / topActivationY;
+				nextSpeed = -(minSpeed + ratio * (maxSpeed - minSpeed));
+			}
+
+			viewportAutoScrollVelocity.current = nextSpeed;
+			if (nextSpeed !== 0) startViewportAutoScroll();
+			else stopViewportAutoScroll();
+		},
+		[startViewportAutoScroll, stopViewportAutoScroll],
+	);
+
 	const handleDrag = useCallback(
 		(e: React.DragEvent) => {
 			updateDragAutoScroll(e.clientX, e.clientY);
+			updateViewportAutoScroll(e.clientY);
 		},
-		[updateDragAutoScroll],
+		[updateDragAutoScroll, updateViewportAutoScroll],
 	);
 
-	useEffect(() => stopAutoScroll, [stopAutoScroll]);
+	useEffect(() => {
+		const handleWheelWhileDragging = (event: WheelEvent) => {
+			if (!isDragging.current) return;
+			const container = tableContainerRef.current;
+			const isOverTimetable = container?.matches(":hover");
+
+			if (container && isOverTimetable) {
+				container.scrollBy({
+					top: event.deltaY,
+					left: event.deltaX,
+					behavior: "auto",
+				});
+			} else {
+				window.scrollBy({
+					top: event.deltaY,
+					left: 0,
+					behavior: "auto",
+				});
+			}
+			event.preventDefault();
+		};
+
+		window.addEventListener("wheel", handleWheelWhileDragging, {
+			passive: false,
+		});
+		return () =>
+			window.removeEventListener("wheel", handleWheelWhileDragging);
+	}, []);
+
+	useEffect(() => {
+		const handleGlobalDragOver = (event: DragEvent) => {
+			if (!isDragging.current) return;
+			updateDragAutoScroll(event.clientX, event.clientY);
+			updateViewportAutoScroll(event.clientY);
+		};
+
+		const handleGlobalDrop = () => {
+			stopAutoScroll();
+			stopViewportAutoScroll();
+		};
+
+		window.addEventListener("dragover", handleGlobalDragOver);
+		window.addEventListener("drop", handleGlobalDrop);
+		window.addEventListener("dragend", handleGlobalDrop);
+		return () => {
+			window.removeEventListener("dragover", handleGlobalDragOver);
+			window.removeEventListener("drop", handleGlobalDrop);
+			window.removeEventListener("dragend", handleGlobalDrop);
+		};
+	}, [
+		stopAutoScroll,
+		stopViewportAutoScroll,
+		updateDragAutoScroll,
+		updateViewportAutoScroll,
+	]);
+
+	useEffect(
+		() => () => {
+			stopAutoScroll();
+			stopViewportAutoScroll();
+		},
+		[stopAutoScroll, stopViewportAutoScroll],
+	);
 
 	const toggleSection = useCallback(
 		(section: "unscheduled" | "partial" | "scheduled") => {

@@ -2,8 +2,11 @@ import { useState, useMemo } from "react";
 import Sidebar from "../components/Sidebar";
 import Timetable from "../components/Timetable";
 import { useCourses } from "../context/CoursesContext";
+import { useAuth } from "../context/AuthContext";
+import SessionLoadingScreen from "../components/SessionLoadingScreen";
 
 const TimetablePage = () => {
+  const { authLoading } = useAuth();
   const { courses, loading } = useCourses();
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
 
@@ -13,6 +16,10 @@ const TimetablePage = () => {
     if (!loading && courses.length > 0) return courses[0].courseId;
     return null;
   }, [selectedCourse, loading, courses]);
+
+  if (authLoading) {
+    return <SessionLoadingScreen />;
+  }
 
   return (
     <div className="flex flex-col h-[calc(100svh-73px)] bg-white">

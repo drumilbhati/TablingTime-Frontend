@@ -200,32 +200,20 @@ const getRoomNumberForSlot = (
 	return undefined;
 };
 
-const getExpectedComponentCount = (course: Course): number => {
-	const theoryCredits =
-		Number(course.theoryCredits) ||
-		Number(course.Credits) ||
-		Number(course.credits) ||
-		0;
-	const labCredits = Number(course.labCredits) || 0;
-	const componentCount = (theoryCredits > 0 ? 1 : 0) + (labCredits > 0 ? 1 : 0);
-	return componentCount > 0 ? componentCount : 1;
-};
-
-const getScheduledComponentCount = (course: Course): number => {
-	if (!course.timeslots?.length) return 0;
-	return new Set(
-		course.timeslots.map(
-			(slot) => `${slot.day}|${slot.startTime}|${slot.endTime}`,
-		),
-	).size;
-};
-
 const getToleranceCount = (course: Course): number => {
 	const count = Number(course.toleranceCount);
 	return Number.isFinite(count) ? count : 0;
 };
 
-const getCourseIdentifier = (course: Partial<Course>): string =>
+type CourseIdentifierLike = {
+	sectionId?: string;
+	courseSectionId?: string;
+	displayCourseId?: string;
+	courseId?: string;
+	_id?: string;
+};
+
+const getCourseIdentifier = (course: CourseIdentifierLike): string =>
 	String(
 		course.sectionId ||
 			course.courseSectionId ||
@@ -1479,12 +1467,12 @@ const ManualScheduler = () => {
 																	stopAutoScroll();
 																	setDraggedCourse(null);
 																}}
-																className={`p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
+																className={`min-w-0 overflow-hidden p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
 															>
-																<div className={`font-bold text-sm leading-none ${colors.text}`}>
+																<div className={`min-w-0 break-words font-bold text-sm leading-tight ${colors.text}`}>
 																	{formatCourseLabel(section)}
 																</div>
-																<div className="text-[10px] text-gray-500 mt-1.5 line-clamp-1">
+																<div className="min-w-0 break-words text-[10px] text-gray-500 mt-1.5 line-clamp-1">
 																	{section.courseName}
 																</div>
 																{getToleranceCount(section) > 0 && (
@@ -1521,12 +1509,12 @@ const ManualScheduler = () => {
 																	stopAutoScroll();
 																	setDraggedCourse(null);
 																}}
-																className={`group p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
+																className={`group min-w-0 overflow-hidden p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
 															>
-															<div className={`font-bold text-sm leading-none ${colors.text}`}>
+																<div className={`min-w-0 break-words font-bold text-sm leading-tight ${colors.text}`}>
 																{formatCourseLabel(section)}
 															</div>
-															<div className="text-[10px] text-gray-500 mt-1.5 line-clamp-1">
+																<div className="min-w-0 break-words text-[10px] text-gray-500 mt-1.5 line-clamp-1">
 																{section.courseName}
 															</div>
 															{getToleranceCount(section) > 0 && (
@@ -1565,12 +1553,12 @@ const ManualScheduler = () => {
 															stopAutoScroll();
 															setDraggedCourse(null);
 														}}
-														className={`p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
+														className={`min-w-0 overflow-hidden p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
 													>
-														<div className={`font-bold text-sm leading-none ${colors.text}`}>
+														<div className={`min-w-0 break-words font-bold text-sm leading-tight ${colors.text}`}>
 															{formatCourseBaseLabel(representative)}
 														</div>
-														<div className="text-[10px] text-gray-500 mt-1.5 line-clamp-1">
+														<div className="min-w-0 break-words text-[10px] text-gray-500 mt-1.5 line-clamp-1">
 															{sec.id === "scheduled"
 																? groupSections
 																	.map((section) => formatCourseLabel(section))
@@ -1706,10 +1694,10 @@ const ManualScheduler = () => {
 																				endTime,
 																			)
 																		}
-																		className={`group p-2.5 rounded-xl border border-gray-200/50 shadow-sm cursor-grab active:scale-[0.98] transition-all ${colors.bg} ${colors.text} hover:border-gray-300`}
+																		className={`group min-w-0 overflow-hidden p-2.5 rounded-xl border border-gray-200/50 shadow-sm cursor-grab active:scale-[0.98] transition-all ${colors.bg} ${colors.text} hover:border-gray-300`}
 																	>
 																		<div className="font-bold text-[10px] leading-tight flex justify-between gap-2">
-																			<span>{formatCourseLabel(c)}</span>
+																			<span className="min-w-0 break-words">{formatCourseLabel(c)}</span>
 																			<button
 																				onClick={(e) => {
 																					e.stopPropagation();
@@ -1733,7 +1721,7 @@ const ManualScheduler = () => {
 																				<Trash2 size={10} />
 																			</button>
 																		</div>
-																		<div className="text-[9px] opacity-60 truncate mt-1">
+																		<div className="min-w-0 break-words text-[9px] opacity-60 mt-1">
 																			{c.courseName}
 																		</div>
 																		{getToleranceCount(c) > 0 && (

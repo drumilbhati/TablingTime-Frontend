@@ -284,15 +284,15 @@ const PreferenceModal = ({
 				onClick={(e) => e.stopPropagation()}
 			>
 				<div
-					className={`flex justify-between items-center p-5 border-b ${isDone ? "bg-green-50 border-green-100" : "bg-gray-50 border-gray-100"}`}
+					className={`flex min-w-0 justify-between items-center p-5 border-b ${isDone ? "bg-green-50 border-green-100" : "bg-gray-50 border-gray-100"}`}
 				>
-					<div>
-						<h3 className="panel-title">{user.name}</h3>
+					<div className="min-w-0">
+						<h3 className="panel-title break-words">{user.name}</h3>
 						<p className="body-sm text-gray-500">Scheduling Preferences</p>
 					</div>
 					<button
 						onClick={onClose}
-						className="text-gray-400 hover:text-gray-600"
+						className="shrink-0 text-gray-400 hover:text-gray-600"
 					>
 						<X size={20} />
 					</button>
@@ -665,7 +665,7 @@ const ProfessorPreferences = () => {
 						{filtered.map((u) => (
 							<div
 								key={u._id}
-								className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all flex flex-col group"
+								className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-all flex flex-col group overflow-hidden"
 							>
 								<div className="flex justify-between items-start mb-4">
 									<div className="p-2 bg-gray-50 rounded-lg text-gray-400 group-hover:text-gray-900 group-hover:bg-gray-100 transition-colors">
@@ -679,8 +679,8 @@ const ProfessorPreferences = () => {
 										<Trash2 size={16} />
 									</button>
 								</div>
-								<h3 className="font-bold text-gray-900 truncate">{u.name}</h3>
-								<div className="flex items-center gap-1.5 text-xs text-gray-400 mt-1">
+								<h3 className="min-w-0 break-words font-bold text-gray-900">{u.name}</h3>
+								<div className="flex min-w-0 items-center gap-1.5 text-xs text-gray-400 mt-1 break-words">
 									<Mail size={10} /> {u.email}
 								</div>
 								<div className="mt-2">

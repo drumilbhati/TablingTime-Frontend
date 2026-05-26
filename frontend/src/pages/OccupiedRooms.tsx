@@ -16,7 +16,10 @@ import {
 import { useCourseModal } from "../context/CourseModalContext";
 import { getCourseColors } from "../lib/courseColors";
 import { formatCourseLabel } from "../lib/courseLabels";
-import { getRoomLabelForSlot } from "../lib/courseRooms";
+import {
+	getRoomAssignmentsForSlot,
+	getRoomLabelForSlot,
+} from "../lib/courseRooms";
 
 type RoomRef =
 	| string
@@ -107,12 +110,12 @@ const OccupiedRooms = () => {
 
 			const matchesBuilding =
 				selectedBuilding === "ALL" ||
-				(course.room || []).some((room: RoomRef) => {
-					if (typeof room === "object") {
-						return room.building === selectedBuilding;
-					}
-					return false;
-				});
+				getRoomAssignmentsForSlot(
+					course,
+					day,
+					startTime,
+					endTime,
+				).some((room) => room.building === selectedBuilding);
 
 			const matchesSearch =
 				searchTerm === "" ||
@@ -403,21 +406,21 @@ const OccupiedRooms = () => {
 													);
 													setSelectedTimeslot(null);
 												}}
-												className={`cursor-pointer border rounded-xl p-4 transition-all shadow-sm hover:shadow-md ${palette.bg} ${palette.border} ${palette.hoverBg}`}
+												className={`cursor-pointer min-w-0 overflow-hidden border rounded-xl p-4 transition-all shadow-sm hover:shadow-md ${palette.bg} ${palette.border} ${palette.hoverBg}`}
 											>
-												<div className="flex items-start justify-between">
+												<div className="flex min-w-0 items-start justify-between gap-2">
 													<div
-														className={`font-bold text-lg leading-none ${palette.text}`}
+														className={`min-w-0 break-words font-bold text-lg leading-tight ${palette.text}`}
 													>
 														{formatCourseLabel(course)}
 													</div>
 													<span
-														className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider text-white ${palette.selectedBg}`}
+														className={`shrink-0 max-w-full break-words text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider text-white ${palette.selectedBg}`}
 													>
 														{course.courseType || "COURSE"}
 													</span>
 												</div>
-												<div className="text-xs text-gray-500 mt-1 font-medium">
+												<div className="mt-1 min-w-0 break-words text-xs text-gray-500 font-medium">
 													{course.courseName}
 												</div>
 

@@ -99,7 +99,7 @@ export default function PartialTimetableUploadModal({ onClose, onSuccess }: Part
 
   return (
     <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="relative bg-white rounded-xl shadow-xl max-w-lg w-full flex flex-col" onClick={(e) => e.stopPropagation()}>
+      <div className="relative bg-white rounded-xl shadow-xl max-w-lg w-full flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
         {status.type === "loading" && (
           <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-white/80 backdrop-blur-sm">
             <div className="w-full max-w-sm rounded-3xl border border-gray-100 bg-white p-6 shadow-2xl text-center">
@@ -125,11 +125,11 @@ export default function PartialTimetableUploadModal({ onClose, onSuccess }: Part
 
         {/* Header */}
         <div className="flex justify-between items-start p-5 border-b border-gray-100">
-          <div>
+          <div className="min-w-0">
             <h3 className="text-lg flex flex-col font-semibold text-gray-900 gap-1">
               Upload Incremental Timetable
             </h3>
-            <p className="text-sm text-gray-500 mt-1">
+            <p className="break-words text-sm text-gray-500 mt-1">
               Requires two CSV files: Schedule list and Student list.
             </p>
           </div>
@@ -140,11 +140,11 @@ export default function PartialTimetableUploadModal({ onClose, onSuccess }: Part
 
         {/* Body */}
         <div className="p-5 space-y-4">
-          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3">
+          <div className="rounded-lg border border-dashed border-gray-200 bg-gray-50 p-3 overflow-hidden">
             {SAMPLE_FILES.map((sample, index) => (
               <div key={sample.label} className={index > 0 ? "mt-4" : ""}>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{sample.label} Columns</p>
-                <p className="mt-1 text-sm text-gray-700">{sample.columns}</p>
+                <p className="break-words text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{sample.label} Columns</p>
+                <p className="mt-1 break-words text-sm text-gray-700">{sample.columns}</p>
                 <a
                   href={sample.href}
                   download
@@ -203,13 +203,13 @@ export default function PartialTimetableUploadModal({ onClose, onSuccess }: Part
           {status.type === "success" && (
             <div className="mt-4 rounded-lg border border-green-200 bg-green-50 p-3">
               <p className="text-sm font-medium text-green-800">{status.message}</p>
-              <p className="mt-1 text-sm text-green-700">
+              <p className="mt-1 break-words text-sm text-green-700">
                 {status.success} succeeded, {status.failed} failed.
               </p>
               {status.errors.length > 0 && (
                 <div className="mt-2 max-h-32 overflow-y-auto rounded-md bg-white/70 p-2">
                   {status.errors.slice(0, 5).map((error, index) => (
-                    <p key={`${error.row}-${index}`} className="text-xs text-green-900">
+                    <p key={`${error.row}-${index}`} className="break-words text-xs text-green-900">
                       Row {error.row}: {error.reason}
                     </p>
                   ))}

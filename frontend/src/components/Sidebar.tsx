@@ -103,18 +103,18 @@ const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
 										if (t) open(course as any, t.day, t.startTime, t.endTime);
 										else open(course as any);
 									}}
-									className={`w-full text-left p-3 rounded-lg border transition-all shadow-sm ${
+									className={`w-full min-w-0 overflow-hidden text-left p-3 rounded-lg border transition-all shadow-sm ${
 										isSelected
 											? `${palette.bg} ${palette.border} ring-2 ring-gray-900/10`
 											: `${palette.bg} ${palette.border} hover:border-gray-300 ${palette.hoverBg}`
 									}`}
 								>
 									<div
-										className={`font-bold text-sm leading-none mb-1 ${palette.text}`}
+										className={`min-w-0 break-words font-bold text-sm leading-tight mb-1 ${palette.text}`}
 									>
 										{formatCourseLabel(course)}
 									</div>
-									<div className="text-[11px] font-medium leading-tight line-clamp-2 text-gray-500">
+									<div className="min-w-0 break-words text-[11px] font-medium leading-tight line-clamp-2 text-gray-500">
 										{course.courseName}
 									</div>
 									{shouldShowTolerance && (

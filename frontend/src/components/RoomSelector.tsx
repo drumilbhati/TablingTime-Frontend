@@ -229,9 +229,9 @@ const RoomSelector = ({
 
           {/* Course & Slot Summary */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-            <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+            <div className="min-w-0 overflow-hidden p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Course</div>
-              <div className="text-sm font-bold text-gray-900 truncate">{formatCourseLabel(course)}</div>
+              <div className="min-w-0 break-words text-sm font-bold text-gray-900">{formatCourseLabel(course)}</div>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Students</div>
@@ -320,8 +320,8 @@ const RoomSelector = ({
                               : "border-gray-100 bg-white hover:border-gray-300 hover:shadow-sm"
                           }`}
                         >
-                          <div className={`font-bold text-lg ${isSelected ? "text-blue-700" : "text-gray-900"}`}>
-                            {room.building && <span className="text-xs font-normal text-gray-400 block">{room.building}</span>}
+                          <div className={`min-w-0 break-words font-bold text-lg ${isSelected ? "text-blue-700" : "text-gray-900"}`}>
+                            {room.building && <span className="block text-xs font-normal text-gray-400">{room.building}</span>}
                             {room.roomNumber}
                           </div>
                           <div className="text-xs text-gray-500 font-medium mt-1">

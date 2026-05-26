@@ -397,21 +397,21 @@ const VacantRooms = () => {
 										return (
 											<div
 												key={room._id}
-												className={`border rounded-xl p-4 transition-all shadow-sm hover:shadow-md ${palette.bg} ${palette.border} ${palette.hover}`}
+												className={`min-w-0 overflow-hidden border rounded-xl p-4 transition-all shadow-sm hover:shadow-md ${palette.bg} ${palette.border} ${palette.hover}`}
 											>
-												<div className="flex items-start justify-between">
+												<div className="flex min-w-0 items-start justify-between gap-2">
 													<div
-														className={`font-bold text-lg leading-none ${palette.text}`}
+														className={`min-w-0 break-words font-bold text-lg leading-tight ${palette.text}`}
 													>
 														{room.roomNumber}
 													</div>
 													<span
-														className={`text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider text-white ${palette.accent}`}
+														className={`shrink-0 max-w-full break-words text-[10px] px-1.5 py-0.5 rounded font-bold uppercase tracking-wider text-white ${palette.accent}`}
 													>
 														{room.type}
 													</span>
 												</div>
-												<div className="text-xs text-gray-500 mt-1 font-medium">
+												<div className="mt-1 min-w-0 break-words text-xs text-gray-500 font-medium">
 													{room.building || "Other"}
 												</div>
 												<div className="mt-4 flex items-center justify-between border-t border-black/5 pt-3">

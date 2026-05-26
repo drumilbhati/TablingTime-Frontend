@@ -94,11 +94,11 @@ const Navbar = () => {
 					{authLoading ? (
 						<div className="w-20 h-8 bg-gray-50 rounded animate-pulse" />
 					) : isAuthenticated ? (
-						<div className="flex items-center gap-4 border-l border-gray-100 pl-4">
+						<div className="flex min-w-0 items-center gap-4 border-l border-gray-100 pl-4">
 							{/* Name + role */}
-							<div className="flex flex-col items-end">
+							<div className="flex min-w-0 max-w-[14rem] flex-col items-end">
 								{userName && (
-									<span className="text-xs font-bold text-gray-900 leading-none tracking-tight">
+									<span className="max-w-full break-words text-right text-xs font-bold text-gray-900 leading-none tracking-tight">
 										{userName}
 									</span>
 								)}

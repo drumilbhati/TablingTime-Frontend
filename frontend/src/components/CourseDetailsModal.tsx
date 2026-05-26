@@ -64,7 +64,7 @@ export const CourseDetailsModal = ({
 						isSelected ? colors.selectedBg : colors.bg
 					}`}
 				>
-					<div>
+					<div className="min-w-0">
 						<div
 							className={`text-[10px] font-black uppercase tracking-[0.2em] mb-2 opacity-50 ${
 								isSelected ? "text-white" : colors.text
@@ -80,7 +80,7 @@ export const CourseDetailsModal = ({
 							{formatCourseLabel(course)}
 						</h3>
 						<p
-							className={`text-sm font-bold mt-1 leading-relaxed ${
+							className={`mt-1 break-words text-sm font-bold leading-relaxed ${
 								isSelected ? "text-white/80" : "text-slate-500"
 							}`}
 						>
@@ -107,7 +107,7 @@ export const CourseDetailsModal = ({
 								<User size={10} />
 								Faculty
 							</div>
-							<div className="text-sm font-black text-gray-900 truncate">
+							<div className="min-w-0 break-words text-sm font-black text-gray-900">
 								{course.Faculty || "—"}
 							</div>
 						</div>
@@ -156,7 +156,7 @@ export const CourseDetailsModal = ({
 									</button>
 								)}
 							</div>
-							<div className="text-sm font-black text-gray-900 truncate">
+							<div className="min-w-0 break-words text-sm font-black text-gray-900">
 								{roomLabel || "—"}
 							</div>
 						</div>

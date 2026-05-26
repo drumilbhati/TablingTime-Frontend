@@ -105,14 +105,14 @@ const buildRoomLabel = (room: RoomRef): string | undefined => {
 	return roomName;
 };
 
-export const getRoomLabelForSlot = (
+export const getRoomAssignmentsForSlot = (
 	course: Course,
 	day?: string,
 	startTime?: string,
 	endTime?: string,
-): string | undefined => {
+): RoomObject[] => {
 	const rooms = course.room ?? [];
-	if (rooms.length === 0) return undefined;
+	if (rooms.length === 0) return [];
 
 	const structured = rooms.filter(
 		(room): room is RoomObject => typeof room === "object" && room !== null,
@@ -134,27 +134,46 @@ export const getRoomLabelForSlot = (
 			return dayMatches && timeMatches;
 		});
 
-		const matchedLabel = matchedAssignment
-			? buildRoomLabel(matchedAssignment)
-			: undefined;
-		if (matchedLabel) return matchedLabel;
+		if (matchedAssignment) return [matchedAssignment];
 
 		const dynamicSlots = getDynamicSlotCodes(day, startTime, endTime);
 		if (dynamicSlots.length > 0) {
 			const dynamicMatch = structured.find((room) =>
 				dynamicSlots.includes(String(room.slot ?? "")),
 			);
-			const dynamicLabel = dynamicMatch
-				? buildRoomLabel(dynamicMatch)
-				: undefined;
-			if (dynamicLabel) return dynamicLabel;
+			if (dynamicMatch) return [dynamicMatch];
 		}
 	}
 
-	if (structured.length === 1) {
-		const singleLabel = buildRoomLabel(structured[0]);
-		if (singleLabel) return singleLabel;
-	}
+	if (structured.length === 1) return [structured[0]];
+	if (!day || !startTime || !endTime) return structured;
+
+	return [];
+};
+
+export const getRoomLabelForSlot = (
+	course: Course,
+	day?: string,
+	startTime?: string,
+	endTime?: string,
+): string | undefined => {
+	const rooms = course.room ?? [];
+	if (rooms.length === 0) return undefined;
+
+	const slotAssignments = getRoomAssignmentsForSlot(
+		course,
+		day,
+		startTime,
+		endTime,
+	);
+	const slotAssignmentLabel = slotAssignments
+		.map((room) => buildRoomLabel(room))
+		.find(Boolean);
+	if (slotAssignmentLabel) return slotAssignmentLabel;
+
+	const structured = rooms.filter(
+		(room): room is RoomObject => typeof room === "object" && room !== null,
+	);
 
 	const firstStructuredLabel = structured
 		.map((room) => buildRoomLabel(room))

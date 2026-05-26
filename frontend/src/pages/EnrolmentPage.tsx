@@ -161,9 +161,9 @@ const EnrolModal = ({ user, onClose }: { user: User; onClose: () => void }) => {
 				</div>
 
 				<div className="p-6 space-y-4">
-					<div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+						<div className="flex items-center gap-3 p-3 bg-blue-50 rounded-lg border border-blue-100 overflow-hidden">
 						<User size={18} className="text-blue-600" />
-						<div className="text-xs font-bold text-blue-900">
+							<div className="min-w-0 break-words text-xs font-bold text-blue-900">
 							{user.name} ({user.role})
 						</div>
 					</div>
@@ -298,12 +298,12 @@ const EnrolmentPage = () => {
 			}
 		};
 		return (
-			<div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm flex flex-col">
+			<div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm flex flex-col overflow-hidden">
 				<h3 className="font-bold text-gray-900 flex items-center gap-2">
 					<FileText size={16} className="text-gray-400" /> {config.title}
 				</h3>
-				<p className="body-sm text-gray-500 mt-1">{config.description}</p>
-				<div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3">
+				<p className="body-sm text-gray-500 mt-1 break-words">{config.description}</p>
+				<div className="mt-4 rounded-lg border border-gray-100 bg-gray-50 p-3 overflow-hidden">
 					<div className="text-[10px] font-black uppercase tracking-widest text-gray-400">
 						Required columns
 					</div>
@@ -311,7 +311,7 @@ const EnrolmentPage = () => {
 						{config.columns.map((column) => (
 							<span
 								key={column}
-								className="rounded-md bg-white px-2 py-1 text-[10px] font-bold text-gray-700 border border-gray-100"
+								className="max-w-full break-words rounded-md bg-white px-2 py-1 text-[10px] font-bold text-gray-700 border border-gray-100"
 							>
 								{column}
 							</span>
@@ -408,18 +408,18 @@ const EnrolmentPage = () => {
 							{filtered.map((u) => (
 								<div
 									key={u._id}
-									className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all flex items-start sm:items-center justify-between gap-3 group"
+									className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all flex items-start sm:items-center justify-between gap-3 group overflow-hidden"
 								>
 									<div className="min-w-0 flex-1">
 										<div className="flex items-center gap-2 mb-1">
 											<div
 												className={`w-1.5 h-1.5 rounded-full ${u.role === "admin" ? "bg-red-500" : u.role === "faculty" ? "bg-blue-500" : "bg-green-500"}`}
 											/>
-											<h3 className="font-bold text-gray-900 truncate text-sm">
+											<h3 className="min-w-0 break-words font-bold text-gray-900 text-sm">
 												{u.name}
 											</h3>
 										</div>
-										<p className="text-[10px] text-gray-400 truncate ml-3.5 uppercase tracking-wide font-medium">
+										<p className="min-w-0 break-words text-[10px] text-gray-400 ml-3.5 uppercase tracking-wide font-medium">
 											{u.email}
 										</p>
 									</div>

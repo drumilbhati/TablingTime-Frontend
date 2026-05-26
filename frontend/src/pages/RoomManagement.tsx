@@ -504,18 +504,18 @@ const RoomManagement = () => {
 							<p className="text-sm text-gray-400">Select a room to edit.</p>
 						) : (
 							<div className="space-y-4">
-								<div className="flex items-start justify-between gap-4">
-									<div>
-										<div className="text-sm font-semibold text-gray-900">
+								<div className="flex min-w-0 items-start justify-between gap-4">
+									<div className="min-w-0">
+										<div className="min-w-0 break-words text-sm font-semibold text-gray-900">
 											{selectedRoom.roomNumber} {selectedRoom.building ? `(${selectedRoom.building})` : ""}
 										</div>
-										<div className="text-xs text-gray-400">
+										<div className="min-w-0 break-words text-xs text-gray-400">
 											ID: {selectedRoom._id}
 										</div>
 									</div>
 									<button
 										onClick={handleDeleteRoom}
-										className="text-xs font-semibold text-red-600 flex items-center gap-2"
+										className="shrink-0 text-xs font-semibold text-red-600 flex items-center gap-2"
 									>
 										<Trash2 size={14} /> Delete
 									</button>

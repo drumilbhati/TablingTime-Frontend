@@ -161,16 +161,16 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 																	open(course, day, startTime, endTime)
 																}
 																title={`${formatCourseLabel(course)} — ${course.courseName}`}
-																className={`w-full text-left rounded-lg border p-2 transition-all hover:scale-[1.01] active:scale-[0.99] ${colors.bg} ${colors.text} ${colors.border} ${colors.hoverBg} ${
+																className={`w-full min-w-0 overflow-hidden text-left rounded-lg border p-2 transition-all hover:scale-[1.01] active:scale-[0.99] ${colors.bg} ${colors.text} ${colors.border} ${colors.hoverBg} ${
 																	isSelected
 																		? "ring-2 ring-gray-900/10"
 																		: "hover:border-gray-300"
 																}`}
 															>
-																<div className="font-bold text-[11px] leading-tight mb-1">
+																<div className="min-w-0 break-words font-bold text-[11px] leading-tight mb-1">
 																	{formatCourseLabel(course)}
 																</div>
-																<div className="text-[10px] font-medium line-clamp-1 leading-tight text-gray-600">
+																<div className="min-w-0 break-words text-[10px] font-medium line-clamp-1 leading-tight text-gray-600">
 																	{course.courseName}
 																</div>
 																{shouldShowTolerance && (

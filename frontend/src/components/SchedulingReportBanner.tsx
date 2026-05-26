@@ -8,8 +8,10 @@ import {
 	ChevronRight,
 } from "lucide-react";
 import { useCourses } from "../context/CoursesContext";
-import type { SchedulingRunReport } from "../services/schedulingService";
-import { formatCourseLabel } from "../lib/courseLabels";
+import type {
+	SchedulingRunReport,
+	UnscheduledCourseReport,
+} from "../services/schedulingService";
 
 interface SchedulingReportBannerProps {
 	report: SchedulingRunReport | null;
@@ -41,6 +43,23 @@ const ruleLabel = (rule: string) =>
 		.map((part) => part.charAt(0) + part.slice(1).toLowerCase())
 		.join(" ");
 
+const isPlaceholderText = (value?: string | null) => {
+	const trimmed = String(value ?? "").trim();
+	return !trimmed || trimmed === "-";
+};
+
+	const formatReasonCode = (value: string) => {
+	const trimmed = value.trim();
+	if (!trimmed || trimmed === "-") return "";
+	if (/^not\s+scheduled$/i.test(trimmed)) return "Not scheduled";
+
+	return trimmed
+		.replace(/[_-]+/g, " ")
+		.replace(/\s+/g, " ")
+		.toLowerCase()
+		.replace(/\b\w/g, (char) => char.toUpperCase());
+};
+
 const SchedulingReportBanner = ({
 	report,
 	onRefresh,
@@ -64,12 +83,8 @@ const SchedulingReportBanner = ({
 
 	const latestSource = formatSourceLabel(report?.schedulerOptions?.source);
 
-	const resolveCourseLabel = (
-		courseId: string,
-		fallbackCourseCode?: string,
-		fallbackCourseName?: string,
-	) => {
-		const matchedCourse = courses.find(
+	const findMatchingCourse = (courseId: string) =>
+		courses.find(
 			(course) =>
 				course.courseId === courseId ||
 				course.courseCode === courseId ||
@@ -79,16 +94,83 @@ const SchedulingReportBanner = ({
 				course.section === courseId,
 		);
 
+	const resolveCourseName = (courseId: string) => {
+		const matchedCourse = findMatchingCourse(courseId);
+		if (!matchedCourse) return courseId;
+
+		return (
+			matchedCourse.courseName ||
+			matchedCourse.courseCode ||
+			matchedCourse.courseId ||
+			courseId
+		);
+	};
+
+	const resolveCourseLabel = (
+		courseId: string,
+		fallbackCourseCode?: string,
+		fallbackCourseName?: string,
+	) => {
+		const matchedCourse = findMatchingCourse(courseId);
+
 		if (matchedCourse) {
-			return formatCourseLabel(matchedCourse);
+			const sectionLabel =
+				matchedCourse.section ||
+				matchedCourse.sectionId ||
+				matchedCourse.courseSectionId ||
+				matchedCourse.displayCourseId;
+			const courseName =
+				matchedCourse.courseName || matchedCourse.courseCode || matchedCourse.courseId;
+			return sectionLabel
+				? `${courseName} • Section ${sectionLabel}`
+				: courseName;
 		}
 
-		return fallbackCourseCode || fallbackCourseName || courseId;
+		return fallbackCourseName || fallbackCourseCode || courseId;
 	};
+
+	const isCourseStillUnscheduled = (courseId: string) => {
+		const matchedCourse = findMatchingCourse(courseId);
+		return !(matchedCourse?.timeslots && matchedCourse.timeslots.length > 0);
+	};
+
+	const formatViolationMessage = (message: string) => {
+		if (isPlaceholderText(message)) return "";
+
+		return message.replace(/"([^"]+)"/g, (match, courseId) => {
+			const resolvedCourseName = resolveCourseName(courseId);
+			return resolvedCourseName === courseId ? match : `"${resolvedCourseName}"`;
+		});
+	};
+
+	const resolveUnscheduledReasons = (
+		course: Pick<UnscheduledCourseReport, "reasonCodes">,
+	) =>
+		(course.reasonCodes || []).map(formatReasonCode).filter(Boolean);
+
+	const visibleViolations = (report?.violations ?? []).filter(
+		(violation) =>
+			isCourseStillUnscheduled(violation.courseId) &&
+			violation.details.some((detail) => !isPlaceholderText(detail.message)),
+	);
+	const hasVisibleViolations = visibleViolations.length > 0;
+	const visibleViolationCourseIds = new Set(
+		visibleViolations.map((violation) => violation.courseId),
+	);
+	const unscheduledCourses = (report.unscheduledCourses?.length
+		? report.unscheduledCourses
+		: liveUnscheduledCourses.map((course) => ({
+			courseId: course.courseId,
+			courseCode: course.courseCode,
+			courseName: course.courseName,
+			courseType: course.courseType,
+			reasonCodes: ["Not scheduled"],
+		}))
+	).filter((course) => !visibleViolationCourseIds.has(course.courseId));
 
 	return (
 		<section
-			className={`mx-6 mt-4 rounded-2xl border px-5 py-4 shadow-sm ${
+			className={`mx-6 mt-4 overflow-hidden rounded-2xl border px-5 py-4 shadow-sm ${
 				hasViolations || hasUnscheduled
 					? "border-amber-200 bg-amber-50/80"
 					: report
@@ -97,7 +179,7 @@ const SchedulingReportBanner = ({
 			}`}
 		>
 			<div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-				<div className="flex items-start gap-3">
+				<div className="flex min-w-0 items-start gap-3">
 					<div
 						className={`rounded-full p-2 ${
 							hasViolations || hasUnscheduled
@@ -116,18 +198,18 @@ const SchedulingReportBanner = ({
 						)}
 					</div>
 
-					<div>
+					<div className="min-w-0">
 						<div className="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">
 							Scheduling notification
 						</div>
-						<h2 className="mt-1 text-base font-semibold text-gray-900">
+						<h2 className="mt-1 break-words text-base font-semibold text-gray-900">
 							{hasViolations && hasUnscheduled
 								? "Conflicts and unscheduled courses detected"
 								: hasViolations
 									? "Preferences or constraints were not followed"
 									: "Some courses could not be scheduled"}
 						</h2>
-						<p className="mt-1 text-sm text-gray-600">
+						<p className="mt-1 break-words text-sm text-gray-600">
 							{latestSource} · {formatTimestamp(report.generatedAt)}
 						</p>
 					</div>
@@ -144,7 +226,7 @@ const SchedulingReportBanner = ({
 			</div>
 			<div className="mt-4 space-y-4">
 				<div className="grid gap-3 md:grid-cols-5">
-					<div className="rounded-xl border border-white/70 bg-white/80 p-3">
+					<div className="min-w-0 rounded-xl border border-white/70 bg-white/80 p-3">
 						<div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
 							Courses reviewed
 						</div>
@@ -152,7 +234,7 @@ const SchedulingReportBanner = ({
 							{report.summary.totalCoursesReviewed}
 						</div>
 					</div>
-					<div className="rounded-xl border border-white/70 bg-white/80 p-3">
+					<div className="min-w-0 rounded-xl border border-white/70 bg-white/80 p-3">
 						<div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
 							Violation Count
 						</div>
@@ -160,7 +242,7 @@ const SchedulingReportBanner = ({
 							{report.summary.totalViolations}
 						</div>
 					</div>
-					<div className="rounded-xl border border-white/70 bg-white/80 p-3">
+					<div className="min-w-0 rounded-xl border border-white/70 bg-white/80 p-3">
 						<div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
 							Unscheduled
 						</div>
@@ -168,7 +250,7 @@ const SchedulingReportBanner = ({
 							{unscheduledCount}
 						</div>
 					</div>
-					<div className="rounded-xl border border-white/70 bg-white/80 p-3">
+					<div className="min-w-0 rounded-xl border border-white/70 bg-white/80 p-3">
 						<div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
 							Courses affected
 						</div>
@@ -176,7 +258,7 @@ const SchedulingReportBanner = ({
 							{report.summary.coursesWithViolations}
 						</div>
 					</div>
-					<div className="rounded-xl border border-white/70 bg-white/80 p-3">
+					<div className="min-w-0 rounded-xl border border-white/70 bg-white/80 p-3">
 						<div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
 							Professors affected
 						</div>
@@ -186,7 +268,7 @@ const SchedulingReportBanner = ({
 					</div>
 				</div>
 
-				{hasViolations && (
+				{hasVisibleViolations && (
 					<div className="space-y-3">
 						<button
 							onClick={() => setIsViolationsExpanded(!isViolationsExpanded)}
@@ -204,25 +286,29 @@ const SchedulingReportBanner = ({
 
 						{isViolationsExpanded && (
 							<div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-								{report.violations.map((violation, index) => (
+								{visibleViolations.map((violation, index) => (
 									<article
 										key={`${violation.courseId ?? "unknown"}-${violation.professorId ?? "unknown"}-${violation.day ?? "unknown"}-${violation.startTime ?? "unknown"}-${violation.endTime ?? "unknown"}-${index}`}
-										className="rounded-xl border border-amber-200 bg-white/80 p-4"
+										className="overflow-hidden rounded-xl border border-amber-200 bg-white/80 p-4"
 									>
 										<div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-											<div>
+											<div className="min-w-0">
 												<div className="flex flex-wrap items-center gap-2">
-													<h3 className="text-sm font-semibold text-gray-900">
+													<h3 className="break-words text-sm font-semibold text-gray-900">
 														{resolveCourseLabel(violation.courseId)}
 													</h3>
 													<span className="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-700">
 														Professor {violation.professorId}
 													</span>
 												</div>
-												<p className="mt-1 text-sm text-gray-700">
-													{violation.day} {violation.startTime} -{" "}
-													{violation.endTime}
-												</p>
+												{!(isPlaceholderText(violation.day) && isPlaceholderText(violation.startTime) && isPlaceholderText(violation.endTime)) ? (
+													<p className="mt-1 break-words text-sm text-gray-700">
+														{[violation.day, violation.startTime].filter((value) => !isPlaceholderText(value)).join(" ")}
+														{!isPlaceholderText(violation.endTime)
+															? `${isPlaceholderText(violation.day) && isPlaceholderText(violation.startTime) ? "" : " - "}${violation.endTime}`
+															: ""}
+													</p>
+												) : null}
 											</div>
 
 											{violation.professorConstraints.length > 0 ? (
@@ -245,15 +331,17 @@ const SchedulingReportBanner = ({
 											{violation.details.map((detail, index) => (
 												<div
 													key={`${detail.rule}-${index}`}
-													className="rounded-lg border border-amber-100 bg-amber-50 px-3 py-2"
+													className="overflow-hidden rounded-lg border border-amber-100 bg-amber-50 px-3 py-2"
 												>
 													<div className="flex flex-wrap items-center gap-2">
 														<span className="rounded-full bg-amber-200 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-900">
 															{ruleLabel(detail.rule)}
 														</span>
-														<span className="text-sm font-medium text-amber-950">
-															{detail.message}
-														</span>
+														{!isPlaceholderText(detail.message) ? (
+															<span className="break-words text-sm font-medium text-amber-950">
+																{formatViolationMessage(detail.message)}
+															</span>
+														) : null}
 													</div>
 												</div>
 											))}
@@ -283,50 +371,49 @@ const SchedulingReportBanner = ({
 
 						{isUnscheduledExpanded && (
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 animate-in fade-in slide-in-from-top-2 duration-200">
-								{(report.unscheduledCourses?.length
-									? report.unscheduledCourses
-									: liveUnscheduledCourses.map((course) => ({
-										courseId: course.courseId,
-										courseCode: course.courseCode,
-										courseName: course.courseName,
-										courseType: course.courseType,
-										reasonCodes: ["Not scheduled"],
-									}))
-								).map((course, index) => (
+								{unscheduledCourses.map((course, index) => (
 									<div
 										key={`${course.courseId}-${course.courseCode ?? course.courseName ?? "unscheduled"}-${index}`}
-										className="rounded-xl border border-amber-100 bg-white/60 p-3"
+										className="overflow-hidden rounded-xl border border-amber-100 bg-white/60 p-3"
 									>
 										<div className="flex items-start justify-between gap-2">
-											<h4 className="text-xs font-bold text-gray-900">
+											<h4 className="min-w-0 break-words text-xs font-bold text-gray-900">
 												{resolveCourseLabel(
 													course.courseId,
 													course.courseCode,
 													course.courseName,
 												)}
 											</h4>
-											<span className="text-[10px] text-gray-500">
+											<span className="shrink-0 text-[10px] text-gray-500">
 												{course.courseType}
 											</span>
 										</div>
-										<p className="text-[10px] text-gray-600 truncate mt-0.5">
-											{course.courseName}
-										</p>
+												{!isPlaceholderText(course.courseName) ? (
+													<p className="mt-0.5 break-words text-[10px] text-gray-600">
+														{course.courseName}
+													</p>
+												) : null}
 
 										<div className="mt-2 flex flex-wrap gap-1">
-											{course.reasonCodes.map((code) => (
+														{(() => {
+															const reasons = resolveUnscheduledReasons(course);
+															return reasons.map((code) => (
 												<span
 													key={code}
-													className="text-[9px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-100 font-medium"
+														className="max-w-full break-words text-[9px] px-1.5 py-0.5 bg-amber-50 text-amber-700 rounded border border-amber-100 font-medium"
 												>
-													{ruleLabel(code)}
+																{formatReasonCode(code)}
 												</span>
-											))}
-											{course.reasonCodes.length === 0 && (
+															));
+														})()}
+														{(() => {
+															const reasons = resolveUnscheduledReasons(course);
+															return reasons.length === 0 ? (
 												<span className="text-[9px] px-1.5 py-0.5 bg-gray-50 text-gray-500 rounded border border-gray-100">
 													Unknown Reason
 												</span>
-											)}
+														) : null;
+														})()}
 										</div>
 									</div>
 								))}

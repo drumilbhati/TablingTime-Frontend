@@ -11,6 +11,9 @@ export interface SchedulingRequest {
 // New interface for manual scheduling operations
 export interface ManualSchedulingRequest {
 	courseId: string;
+	sectionId?: string;
+	courseSectionId?: string;
+	displayCourseId?: string;
 	day?: string;
 	startTime?: string;
 	endTime?: string;
@@ -364,6 +367,11 @@ class SchedulingService {
 
 		requestBody = {
 			...requestBody,
+			...(data.sectionId ? { sectionId: data.sectionId } : {}),
+			...(data.courseSectionId
+				? { courseSectionId: data.courseSectionId }
+				: {}),
+			...(data.displayCourseId ? { displayCourseId: data.displayCourseId } : {}),
 			...(data.validateOnly !== undefined
 				? { validateOnly: data.validateOnly }
 				: {}),

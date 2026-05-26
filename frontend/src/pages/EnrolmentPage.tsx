@@ -351,14 +351,14 @@ const EnrolmentPage = () => {
 
 	return (
 		<div className="flex min-h-[calc(100svh-73px)] flex-col bg-white">
-			<div className="px-6 py-6 border-b border-gray-100 bg-white">
+			<div className="px-4 sm:px-6 py-5 sm:py-6 border-b border-gray-100 bg-white">
 				<h1 className="page-title">Enrolment Hub</h1>
 				<p className="body-sm text-gray-400 mt-0.5">
 					Manage system data and user course paths.
 				</p>
 			</div>
 
-			<div className="p-6 bg-gray-50/50 flex-1 overflow-y-auto no-scrollbar pb-20">
+			<div className="p-4 sm:p-6 bg-gray-50/50 flex-1 overflow-y-auto no-scrollbar pb-20">
 				<div className="max-w-7xl mx-auto w-full">
 					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-10">
 						{CSV_UPLOADS.map((c) => (
@@ -366,19 +366,19 @@ const EnrolmentPage = () => {
 						))}
 					</div>
 
-					<div className="flex justify-between items-center mb-6">
+					<div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
 						<h2 className="section-title">Directory</h2>
-						<div className="flex gap-2">
+						<div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
 							<select
 								value={role}
 								onChange={(e) => setRole(e.target.value)}
-								className="rounded border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-600"
+								className="rounded border border-gray-200 px-3 py-1.5 text-xs font-bold text-gray-600 w-full sm:w-auto"
 							>
 								<option value="all">All Roles</option>
 								<option value="student">Students</option>
 								<option value="faculty">Faculty</option>
 							</select>
-							<div className="relative">
+							<div className="relative w-full sm:w-auto">
 								<Search
 									size={14}
 									className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-300"
@@ -388,7 +388,7 @@ const EnrolmentPage = () => {
 									placeholder="Filter name..."
 									value={query}
 									onChange={(e) => setQuery(e.target.value)}
-									className="pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs"
+									className="w-full sm:w-auto pl-9 pr-3 py-1.5 border border-gray-200 rounded-lg text-xs"
 								/>
 							</div>
 						</div>
@@ -408,7 +408,7 @@ const EnrolmentPage = () => {
 							{filtered.map((u) => (
 								<div
 									key={u._id}
-									className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all flex items-center justify-between group"
+									className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm hover:shadow-md transition-all flex items-start sm:items-center justify-between gap-3 group"
 								>
 									<div className="min-w-0 flex-1">
 										<div className="flex items-center gap-2 mb-1">
@@ -426,7 +426,7 @@ const EnrolmentPage = () => {
 									{u.role !== "admin" && (
 										<button
 											onClick={() => setTarget(u)}
-											className="ml-4 btn-outline p-2 hover:bg-gray-900 hover:text-white"
+											className="ml-0 sm:ml-4 btn-outline p-2 hover:bg-gray-900 hover:text-white shrink-0"
 										>
 											<UserPlus size={14} />
 										</button>

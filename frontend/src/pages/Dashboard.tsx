@@ -15,14 +15,14 @@ const Dashboard = () => {
 
   return (
     <div className="flex flex-col h-[calc(100svh-73px)] bg-white">
-      <div className="flex flex-1 min-h-0">
-        <div className="w-80 bg-white border-r border-gray-200 overflow-y-auto shrink-0">
+      <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
+        <div className="w-full lg:w-80 bg-white border-b lg:border-b-0 lg:border-r border-gray-200 overflow-y-auto shrink-0 max-h-[46svh] lg:max-h-none">
           <Sidebar
             selectedCourse={activeCourse}
             onSelectCourse={setSelectedCourse}
           />
         </div>
-        <div className="flex-1 overflow-y-auto bg-white">
+        <div className="flex-1 min-h-0 overflow-y-auto bg-white">
           <Timetable selectedCourse={activeCourse} />
         </div>
       </div>

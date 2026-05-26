@@ -311,7 +311,7 @@ const RoomManagement = () => {
 
 	return (
 		<div className="flex min-h-[calc(100svh-73px)] flex-col bg-white">
-			<div className="px-6 py-6 border-b border-gray-100 flex justify-between items-center bg-white shadow-sm">
+			<div className="px-4 sm:px-6 py-5 sm:py-6 border-b border-gray-100 flex flex-wrap justify-between gap-3 items-center bg-white shadow-sm">
 				<div>
 					<h1 className="page-title">Room Management</h1>
 					<p className="body-sm mt-0.5 text-gray-400">
@@ -326,7 +326,7 @@ const RoomManagement = () => {
 				</button>
 			</div>
 
-			<div className="grid gap-6 p-6 lg:grid-cols-[1.2fr_1fr]">
+			<div className="grid gap-4 sm:gap-6 p-4 sm:p-6 lg:grid-cols-[1.2fr_1fr]">
 				<div className="space-y-6">
 					<div className="bg-white border border-gray-200 rounded-xl p-5">
 						<div className="flex items-center justify-between mb-4">
@@ -343,7 +343,7 @@ const RoomManagement = () => {
 						) : error ? (
 							<div className="text-sm text-red-500 font-semibold">{error}</div>
 						) : (
-							<div className="max-h-[420px] overflow-y-auto border border-gray-100 rounded-lg">
+							<div className="max-h-[52svh] lg:max-h-[420px] overflow-y-auto border border-gray-100 rounded-lg">
 								{sortedRooms.map((room) => (
 									<button
 										key={room._id}
@@ -379,7 +379,7 @@ const RoomManagement = () => {
 
 					<div className="bg-white border border-gray-200 rounded-xl p-5">
 						<h2 className="panel-title mb-4">Search Room</h2>
-						<div className="grid gap-3 sm:grid-cols-[2fr_2fr_auto]">
+						<div className="grid gap-3 md:grid-cols-[2fr_2fr_auto]">
 							<input
 								value={searchNumber}
 								onChange={(e) => setSearchNumber(e.target.value)}
@@ -395,7 +395,7 @@ const RoomManagement = () => {
 							<button
 								onClick={handleSearch}
 								disabled={searchLoading}
-								className="btn-primary px-4 py-2 text-xs flex items-center gap-2"
+								className="btn-primary px-4 py-2 text-xs flex items-center justify-center gap-2"
 							>
 								<Search size={14} />
 								{searchLoading ? "Searching..." : "Search"}
@@ -407,7 +407,7 @@ const RoomManagement = () => {
 							</p>
 						)}
 						{searchResult && (
-							<div className="mt-4 p-4 border border-gray-100 rounded-lg flex items-center justify-between">
+							<div className="mt-4 p-4 border border-gray-100 rounded-lg flex flex-col sm:flex-row sm:items-center gap-3 sm:justify-between">
 								<div>
 									<div className="text-sm font-semibold text-gray-900">
 										{searchResult.roomNumber} {searchResult.building ? `(${searchResult.building})` : ""}
@@ -430,7 +430,7 @@ const RoomManagement = () => {
 				<div className="space-y-6">
 					<div className="bg-white border border-gray-200 rounded-xl p-5">
 						<h2 className="panel-title mb-4">Create Room</h2>
-						<div className="grid gap-3 sm:grid-cols-2">
+						<div className="grid gap-3 md:grid-cols-2">
 							<input
 								value={createForm.roomNumber}
 								onChange={(e) =>
@@ -521,7 +521,7 @@ const RoomManagement = () => {
 									</button>
 								</div>
 
-								<div className="grid gap-3 sm:grid-cols-2">
+								<div className="grid gap-3 md:grid-cols-2">
 									<input
 										value={updateForm.building ?? ""}
 										onChange={(e) =>
@@ -581,7 +581,7 @@ const RoomManagement = () => {
 									<div className="flex items-center gap-2 text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">
 										<Building2 size={14} /> Schedule
 									</div>
-									<div className="grid gap-3 sm:grid-cols-[2fr_2fr_2fr_auto]">
+									<div className="grid gap-3 lg:grid-cols-[2fr_2fr_2fr_auto]">
 										<div className="space-y-1">
 											<select
 												value={scheduleDayKey}
@@ -635,7 +635,7 @@ const RoomManagement = () => {
 												))}
 											</select>
 										</div>
-										<div className="flex gap-2">
+										<div className="flex gap-2 flex-wrap lg:flex-nowrap">
 											<button
 												className="btn-ghost px-3 py-2 text-xs"
 												onClick={() => {

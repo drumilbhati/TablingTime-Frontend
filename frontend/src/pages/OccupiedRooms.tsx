@@ -153,7 +153,7 @@ const OccupiedRooms = () => {
 				</div>
 			) : (
 				<>
-					<div className="p-6 border-b border-gray-200 bg-white">
+					<div className="p-4 sm:p-6 border-b border-gray-200 bg-white">
 						<div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 max-w-7xl mx-auto w-full">
 							<div>
 								<h1 className="page-title">Occupied Classrooms</h1>
@@ -162,8 +162,8 @@ const OccupiedRooms = () => {
 								</p>
 							</div>
 
-							<div className="flex flex-wrap items-center gap-4">
-								<div className="relative min-w-[280px]">
+							<div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
+								<div className="relative w-full sm:min-w-[280px] lg:w-auto lg:min-w-[320px]">
 									<Search
 										size={16}
 										className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"
@@ -177,7 +177,7 @@ const OccupiedRooms = () => {
 									/>
 								</div>
 
-								<div className="flex items-center gap-3 p-1.5 bg-gray-50 rounded-2xl border border-gray-100">
+								<div className="flex items-center gap-3 p-1.5 bg-gray-50 rounded-2xl border border-gray-100 w-full lg:w-auto">
 									<div className="flex items-center gap-1.5 px-3 py-1 text-[10px] font-semibold text-slate-400 uppercase tracking-[0.16em] shrink-0">
 										<Building2 size={12} />
 										Buildings
@@ -202,7 +202,7 @@ const OccupiedRooms = () => {
 						</div>
 					</div>
 
-					<div className="flex-1 p-6 bg-slate-50/30">
+					<div className="flex-1 p-4 sm:p-6 bg-slate-50/30">
 						<div className="max-w-[1600px] mx-auto w-full">
 							{timeslots.length === 0 ? (
 								<div className="text-center py-20 bg-white rounded-lg border-2 border-dashed border-gray-200">
@@ -216,16 +216,16 @@ const OccupiedRooms = () => {
 								</div>
 							) : (
 								<div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-auto no-scrollbar max-h-[calc(100svh-280px)]">
-									<table className="w-full border-collapse">
+									<table className="w-full min-w-[980px] lg:min-w-[1160px] table-fixed border-collapse">
 										<thead>
 											<tr className="bg-gray-50 border-b border-gray-200">
-												<th className="border-b border-r border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-32 sticky left-0 bg-gray-50 z-10">
+												<th className="border-b border-r border-gray-200 px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-24 sm:w-32 sticky left-0 bg-gray-50 z-10">
 													Time Slot
 												</th>
 												{days.map((day) => (
 													<th
 														key={day}
-														className="border-b border-r border-gray-200 px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-48"
+														className="border-b border-r border-gray-200 px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[130px] sm:min-w-[160px]"
 													>
 														{dayFullNames[day]}
 													</th>
@@ -238,7 +238,7 @@ const OccupiedRooms = () => {
 													key={`${timeslot.startTime}|${timeslot.endTime}`}
 													className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
 												>
-													<td className="border-b border-r border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 bg-inherit whitespace-nowrap sticky left-0 z-10">
+													<td className="border-b border-r border-gray-200 px-3 sm:px-4 py-3 text-sm font-medium text-gray-700 bg-inherit whitespace-nowrap sticky left-0 z-10">
 														{timeslot.startTime} - {timeslot.endTime}
 													</td>
 													{days.map((day) => {
@@ -255,7 +255,7 @@ const OccupiedRooms = () => {
 																	cellCourses.length > 0 &&
 																	setSelectedTimeslot({ ...timeslot, day })
 																}
-																className="border-b border-r border-gray-200 px-3 py-3 min-h-20 align-middle hover:bg-green-50 cursor-pointer transition-colors group"
+																className="border-b border-r border-gray-200 px-2 sm:px-3 py-3 min-h-[84px] align-middle hover:bg-green-50 cursor-pointer transition-colors group"
 															>
 																<div className="flex items-center justify-center h-full">
 																	{cellCourses.length > 0 ? (
@@ -370,7 +370,7 @@ const OccupiedRooms = () => {
 							</div>
 						</div>
 
-						<div className="flex-1 overflow-auto p-6 bg-gray-50">
+						<div className="flex-1 overflow-auto p-4 sm:p-6 bg-gray-50">
 							{selectedTimeslotCourses.length === 0 ? (
 								<div className="text-center py-20 text-gray-500">
 									<div className="text-4xl mb-3">🏫</div>
@@ -382,7 +382,7 @@ const OccupiedRooms = () => {
 									</p>
 								</div>
 							) : (
-								<div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+								<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
 									{selectedTimeslotCourses.map((course) => {
 										const palette = getCourseColors(course);
 										const roomLabel = getRoomLabelForSlot(

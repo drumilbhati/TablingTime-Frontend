@@ -232,14 +232,14 @@ const VacantRooms = () => {
 				</div>
 			) : (
 				<>
-					<div className="p-6 border-b border-gray-200">
+					<div className="p-4 sm:p-6 border-b border-gray-200">
 						<h1 className="page-title">Vacant Classrooms</h1>
 						<p className="text-sm text-gray-600 mt-1">
 							Find available rooms for any given timeslot
 						</p>
 					</div>
 
-					<div className="flex-1 p-6">
+					<div className="flex-1 p-4 sm:p-6">
 						{uniqueTimeslots.length === 0 ? (
 							<div className="text-center py-20 bg-gray-50 rounded-lg border-2 border-dashed border-gray-200">
 								<Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
@@ -252,16 +252,16 @@ const VacantRooms = () => {
 							</div>
 						) : (
 							<div className="bg-white rounded-lg border border-gray-200 shadow-sm overflow-auto">
-								<table className="w-full border-collapse">
+								<table className="w-full min-w-[980px] lg:min-w-[1160px] table-fixed border-collapse">
 									<thead>
 										<tr className="bg-gray-50">
-											<th className="border-b border-r border-gray-200 px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-32 sticky left-0 bg-gray-50 z-10">
+											<th className="border-b border-r border-gray-200 px-3 sm:px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider w-24 sm:w-32 sticky left-0 bg-gray-50 z-10">
 												Time Slot
 											</th>
 											{days.map((day) => (
 												<th
 													key={day}
-													className="border-b border-r border-gray-200 px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-48"
+													className="border-b border-r border-gray-200 px-3 sm:px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider min-w-[130px] sm:min-w-[160px]"
 												>
 													{dayFullNames[day]}
 												</th>
@@ -274,7 +274,7 @@ const VacantRooms = () => {
 												key={idx}
 												className={idx % 2 === 0 ? "bg-white" : "bg-gray-50"}
 											>
-												<td className="border-b border-r border-gray-200 px-4 py-3 text-sm font-medium text-gray-700 bg-inherit whitespace-nowrap sticky left-0 z-10">
+												<td className="border-b border-r border-gray-200 px-3 sm:px-4 py-3 text-sm font-medium text-gray-700 bg-inherit whitespace-nowrap sticky left-0 z-10">
 													{timeslot.startTime} - {timeslot.endTime}
 												</td>
 												{days.map((day) => (
@@ -283,7 +283,7 @@ const VacantRooms = () => {
 														onClick={() =>
 															setSelectedTimeslot({ ...timeslot, day })
 														}
-														className="border-b border-r border-gray-200 px-3 py-3 min-h-20 align-center hover:bg-green-50 cursor-pointer transition-colors group"
+														className="border-b border-r border-gray-200 px-2 sm:px-3 py-3 min-h-[84px] align-center hover:bg-green-50 cursor-pointer transition-colors group"
 													>
 														<div className="flex items-center justify-center h-full">
 															<span className="text-xs text-gray-400 group-hover:text-green-600 font-medium border border-gray-100 group-hover:border-green-200 px-2 py-1 rounded">
@@ -366,7 +366,7 @@ const VacantRooms = () => {
 							</div>
 						</div>
 
-						<div className="flex-1 overflow-auto p-6 bg-gray-50">
+						<div className="flex-1 overflow-auto p-4 sm:p-6 bg-gray-50">
 							{loadingRooms ? (
 								<div className="flex flex-col items-center justify-center py-20">
 									<div className="w-8 h-8 border-4 border-green-200 border-t-green-600 rounded-full animate-spin mb-3"></div>
@@ -389,7 +389,7 @@ const VacantRooms = () => {
 									</p>
 								</div>
 							) : (
-								<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+								<div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
 									{filteredRooms.map((room) => {
 										const palette = getBuildingPalette(
 											room.building || "Other",

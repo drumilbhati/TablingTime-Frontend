@@ -68,7 +68,7 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 	}
 
 	return (
-		<div className="flex-1 flex flex-col bg-white p-6">
+		<div className="flex-1 flex flex-col bg-white p-3 sm:p-4 lg:p-6 min-w-0">
 			{loading ? (
 				<div className="flex-1 flex flex-col gap-4">
 					<div className="h-10 bg-gray-50 rounded-lg animate-pulse" />
@@ -91,16 +91,16 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 				</div>
 			) : (
 				<div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-auto no-scrollbar">
-					<table className="w-full border-collapse">
+					<table className="w-full min-w-[920px] lg:min-w-[1120px] table-fixed border-collapse">
 						<thead>
 							<tr className="bg-gray-50 border-b border-gray-200">
-								<th className="px-4 py-3 text-left w-32 sticky left-0 bg-gray-50 z-10">
+								<th className="px-3 sm:px-4 py-3 text-left w-24 sm:w-32 sticky left-0 bg-gray-50 z-10">
 									<span className="eyebrow-label">Time</span>
 								</th>
 								{DAYS.map((day) => (
 									<th
 										key={day}
-										className="px-4 py-3 text-center min-w-40 border-l border-gray-100"
+										className="px-3 sm:px-4 py-3 text-center min-w-[130px] sm:min-w-[150px] lg:min-w-[170px] border-l border-gray-100"
 									>
 										<span className="eyebrow-label text-gray-900">
 											{DAY_FULL[day]}
@@ -116,7 +116,7 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 									className={`${rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50/30"} border-b border-gray-100 last:border-0`}
 								>
 									{/* Time label */}
-									<td className="px-4 py-4 sticky left-0 bg-inherit z-10 border-r border-gray-100">
+									<td className="px-3 sm:px-4 py-4 sticky left-0 bg-inherit z-10 border-r border-gray-100">
 										<div className="text-sm font-bold text-gray-900 tracking-tight">
 											{startTime}
 										</div>
@@ -136,7 +136,7 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 										return (
 											<td
 												key={day}
-												className="px-1.5 py-1.5 align-top border-l border-gray-50 min-h-20"
+												className="px-1.5 py-1.5 align-top border-l border-gray-50 min-h-[84px]"
 											>
 												<div className="flex flex-col gap-1.5">
 													{cellCourses.map((course) => {

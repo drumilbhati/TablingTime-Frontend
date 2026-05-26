@@ -11,38 +11,29 @@ import {
 	Sparkles,
 	LoaderCircle,
 } from "lucide-react";
-import {
-	useCourses,
-	type Course,
-} from "../context/CoursesContext";
-import { getCourseCredit } from "../lib/courseUtils";
-import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import RoomSelector from "../components/RoomSelector";
 import { useCourseModal } from "../context/CourseModalContext";
+import { useCourses, type Course } from "../context/CoursesContext";
+import ErrorState from "../components/ErrorState";
+import PartialTimetableUploadModal from "../components/PartialTimetableUploadModal";
 import SchedulingReportBanner from "../components/SchedulingReportBanner";
+import { useAuth } from "../context/AuthContext";
+import { useSchedulingReport } from "../context/SchedulingReportContext";
+import { getCourseColors } from "../lib/courseColors";
+import { formatCourseBaseLabel, formatCourseLabel } from "../lib/courseLabels";
+import { getCourseCredit } from "../lib/courseUtils";
 import schedulingService from "../services/schedulingService";
 import type {
 	ManualScheduleConflictDetails,
 	ManualSchedulingAction,
 	ManualSchedulingRequest,
 	SchedulingResponse,
-} from "../services/schedulingService";
-import { ManualSchedulingConflictError } from "../services/schedulingService";
-import type {
 	CourseCategory,
 	ProfessorPreferenceMode,
+	Slot,
 } from "../services/schedulingService";
-import type { Slot } from "../services/schedulingService";
-import ErrorState from "../components/ErrorState";
-import PartialTimetableUploadModal from "../components/PartialTimetableUploadModal";
-import { useSchedulingReport } from "../context/SchedulingReportContext";
-import { getCourseColors } from "../lib/courseColors";
-import {
-	formatCourseBaseLabel,
-	formatCourseLabel,
-} from "../lib/courseLabels";
-
+import { ManualSchedulingConflictError } from "../services/schedulingService";
 type SchedulerStatus =
 	| { type: "idle" }
 	| { type: "loading" }
@@ -234,6 +225,22 @@ const getToleranceCount = (course: Course): number => {
 	return Number.isFinite(count) ? count : 0;
 };
 
+const getCourseIdentifier = (course: Partial<Course>): string =>
+	String(
+		course.sectionId ||
+			course.courseSectionId ||
+			course.displayCourseId ||
+			course.courseId ||
+			course._id ||
+			"",
+	);
+
+const getManualSchedulingIdentifiers = (course: Partial<Course>) => ({
+	sectionId: course.sectionId,
+	courseSectionId: course.courseSectionId,
+	displayCourseId: course.displayCourseId,
+});
+
 const hasStudentConflict = (
 	details?: ManualScheduleConflictDetails,
 ): boolean =>
@@ -262,16 +269,9 @@ const formatElapsed = (seconds: number) => {
 
 const getCourseScheduleState = (
 	course: Course,
-): "unscheduled" | "partial" | "scheduled" => {
+): "unscheduled" | "scheduled" => {
 	if (!course.timeslots?.length) {
 		return "unscheduled";
-	}
-
-	const expectedComponents = getExpectedComponentCount(course);
-	const scheduledComponents = getScheduledComponentCount(course);
-
-	if (expectedComponents > 1 && scheduledComponents < expectedComponents) {
-		return "partial";
 	}
 
 	return "scheduled";
@@ -286,7 +286,6 @@ interface CourseGroup {
 	courseSchool?: string;
 	sections: Course[];
 	unscheduledSections: Course[];
-	partialSections: Course[];
 	scheduledSections: Course[];
 	searchText: string;
 }
@@ -326,7 +325,6 @@ const buildCourseGroups = (items: Course[]): CourseGroup[] => {
 			courseSchool: course.courseSchool,
 			sections: [],
 			unscheduledSections: [],
-			partialSections: [],
 			scheduledSections: [],
 			searchText: "",
 		};
@@ -334,7 +332,6 @@ const buildCourseGroups = (items: Course[]): CourseGroup[] => {
 		nextGroup.sections.push(course);
 		const state = getCourseScheduleState(course);
 		if (state === "unscheduled") nextGroup.unscheduledSections.push(course);
-		if (state === "partial") nextGroup.partialSections.push(course);
 		if (state === "scheduled") nextGroup.scheduledSections.push(course);
 
 		nextGroup.courseCode = nextGroup.courseCode || course.courseCode;
@@ -355,9 +352,6 @@ const buildCourseGroups = (items: Course[]): CourseGroup[] => {
 
 		const unscheduledSections = sections.filter(
 			(course) => getCourseScheduleState(course) === "unscheduled",
-		);
-		const partialSections = sections.filter(
-			(course) => getCourseScheduleState(course) === "partial",
 		);
 		const scheduledSections = sections.filter(
 			(course) => getCourseScheduleState(course) === "scheduled",
@@ -380,7 +374,6 @@ const buildCourseGroups = (items: Course[]): CourseGroup[] => {
 			...group,
 			sections,
 			unscheduledSections,
-			partialSections,
 			scheduledSections,
 			searchText,
 		};
@@ -432,6 +425,9 @@ const ManualScheduler = () => {
 		roomNumber?: string;
 	} | null>(null);
 	const [deletingCourseId, setDeletingCourseId] = useState<string | null>(null);
+	const [deletingCourseLookupId, setDeletingCourseLookupId] = useState<
+		string | null
+	>(null);
 	const [deletingSlotInfo, setDeletingSlotInfo] = useState<{
 		day: string;
 		startTime: string;
@@ -442,7 +438,6 @@ const ManualScheduler = () => {
 	const [showPartialUploadDialog, setShowPartialUploadDialog] = useState(false);
 	const [collapsedSections, setCollapsedSections] = useState({
 		unscheduled: false,
-		partial: false,
 		scheduled: false,
 	});
 	const [priorityOrder, setPriorityOrder] = useState<CourseCategory[]>([
@@ -707,7 +702,7 @@ const ManualScheduler = () => {
 	);
 
 	const toggleSection = useCallback(
-		(section: "unscheduled" | "partial" | "scheduled") => {
+		(section: "unscheduled" | "scheduled") => {
 			setCollapsedSections((current) => ({
 				...current,
 				[section]: !current[section],
@@ -776,9 +771,6 @@ const ManualScheduler = () => {
 	const unscheduledCourses = filteredCourseGroups.filter(
 		(group) => group.unscheduledSections.length > 0,
 	);
-	const partiallyScheduledCourses = filteredCourseGroups.filter(
-		(group) => group.partialSections.length > 0,
-	);
 	const coursesWithAssignedSlots = displayCourses.filter(
 		(c) => getCourseScheduleState(c) !== "unscheduled",
 	);
@@ -834,6 +826,34 @@ const ManualScheduler = () => {
 							: {}),
 					},
 				);
+				if (response?.course) {
+					const responseIdentifier = getCourseIdentifier(response.course);
+					const requestIdentifier = String(data.courseId || "");
+
+					setDisplayCourses((current) =>
+						current.map((course) => {
+							const identifier = getCourseIdentifier(course);
+							if (
+								identifier !== requestIdentifier &&
+								identifier !== responseIdentifier
+							) {
+								return course;
+							}
+
+							const nextCourse: Course = { ...course };
+							if (response.course.timeslots) {
+								nextCourse.timeslots = response.course.timeslots;
+							}
+							if (response.course.timing) {
+								nextCourse.timing = response.course.timing;
+							}
+							if (response.course.room) {
+								nextCourse.room = response.course.room;
+							}
+							return nextCourse;
+						}),
+					);
+				}
 				const ignoredMessages = [
 					response.conflictsIgnored?.student
 						? "ignored student conflict"
@@ -877,7 +897,10 @@ const ManualScheduler = () => {
 	const handleDeleteCourseConfirm = async () => {
 		if (!deletingCourseId || !deletingSlotInfo) return;
 		const sourceCourse = displayCourses.find(
-			(c) => c.courseId === deletingCourseId,
+			(c) =>
+				(deletingCourseLookupId &&
+					getCourseIdentifier(c) === deletingCourseLookupId) ||
+				c.courseId === deletingCourseId,
 		);
 		const resolvedRoomNumber =
 			deletingSlotInfo.roomNumber ||
@@ -899,6 +922,7 @@ const ManualScheduler = () => {
 			"DELETE",
 			{
 				courseId: deletingCourseId,
+				...(sourceCourse ? getManualSchedulingIdentifiers(sourceCourse) : {}),
 				prevDay: toFullDayName(deletingSlotInfo.day),
 				prevStartTime: deletingSlotInfo.startTime,
 				prevEndTime: deletingSlotInfo.endTime,
@@ -910,6 +934,7 @@ const ManualScheduler = () => {
 		if (wasSuccessful) {
 			setShowDeleteConfirm(false);
 			setDeletingCourseId(null);
+			setDeletingCourseLookupId(null);
 			setDeletingSlotInfo(null);
 		}
 	};
@@ -1090,6 +1115,12 @@ const ManualScheduler = () => {
 
 	const handleRoomSelect = async (roomNumber: string) => {
 		if (!roomSelectorCourse || !selectedSlot) return;
+		const courseIdentifier = getCourseIdentifier(roomSelectorCourse);
+		const manualIdentifiers = getManualSchedulingIdentifiers(roomSelectorCourse);
+		if (!courseIdentifier) {
+			setSchedulingError("Could not resolve course identifier for scheduling.");
+			return;
+		}
 		const destinationDay = toFullDayName(
 			selectedDropDay ?? selectedSlot.days[0],
 		);
@@ -1099,6 +1130,7 @@ const ManualScheduler = () => {
 				"REPLACE",
 				{
 					courseId: roomSelectorCourse.courseId,
+					...manualIdentifiers,
 					day: destinationDay,
 					startTime: selectedSlot.startTime,
 					endTime: selectedSlot.endTime,
@@ -1116,6 +1148,7 @@ const ManualScheduler = () => {
 				"ADD",
 				{
 					courseId: roomSelectorCourse.courseId,
+					...manualIdentifiers,
 					day: destinationDay,
 					startTime: selectedSlot.startTime,
 					endTime: selectedSlot.endTime,
@@ -1155,6 +1188,22 @@ const ManualScheduler = () => {
 		);
 		return matchedCourse?.courseName || matchedCourse?.courseCode || courseId;
 	};
+
+	const deletingCourseLabel = (() => {
+		if (!deletingCourseId && !deletingCourseLookupId) return "this course";
+		const lookupId = deletingCourseLookupId || deletingCourseId;
+		const matchedCourse = displayCourses.find(
+			(course) => getCourseIdentifier(course) === lookupId,
+		);
+		if (!matchedCourse) return lookupId;
+
+		const sectionLabel = formatCourseLabel(matchedCourse);
+		if (!sectionLabel || sectionLabel === matchedCourse.courseName) {
+			return matchedCourse.courseName || lookupId;
+		}
+
+		return `${matchedCourse.courseName} (${sectionLabel})`;
+	})();
 
 	return (
 		<div className="flex flex-col min-h-[calc(100svh-73px)] bg-white">
@@ -1229,14 +1278,14 @@ const ManualScheduler = () => {
 			)}
 
 			{/* Header */}
-			<div className="border-b border-gray-100 px-6 py-4 flex justify-between items-center bg-white">
+			<div className="border-b border-gray-100 px-4 sm:px-6 py-4 flex flex-wrap gap-3 justify-between items-center bg-white">
 				<div>
 					<h1 className="page-title">Scheduler</h1>
 					<p className="body-sm mt-0.5 text-gray-400">
 						Drag to manually assign or run auto-scheduler.
 					</p>
 				</div>
-				<div className="flex gap-2">
+				<div className="flex flex-wrap gap-2">
 					<button
 						onClick={() => setShowPartialUploadDialog(true)}
 						disabled={status.type === "loading" || isScheduling}
@@ -1261,7 +1310,7 @@ const ManualScheduler = () => {
 			</div>
 
 			{/* Controls */}
-			<div className="border-b border-gray-100 bg-gray-50/30 px-6 py-6">
+			<div className="border-b border-gray-100 bg-gray-50/30 px-4 sm:px-6 py-6">
 				<div className="max-w-7xl mx-auto grid gap-6 md:grid-cols-2">
 					<div className="bg-white border border-gray-100 p-5 rounded-2xl shadow-sm">
 						<h3 className="section-title text-[11px] uppercase tracking-wider text-gray-400 mb-4">
@@ -1329,9 +1378,9 @@ const ManualScheduler = () => {
 				onRefresh={refreshLatestReport}
 			/>
 
-			<div className="flex flex-1 overflow-hidden">
+			<div className="flex flex-1 overflow-hidden flex-col xl:flex-row min-h-0">
 				{/* List */}
-				<div className="w-80 border-r border-gray-100 flex flex-col shrink-0 bg-white">
+				<div className="w-full xl:w-80 border-b xl:border-b-0 xl:border-r border-gray-100 flex flex-col shrink-0 bg-white max-h-[50vh] xl:max-h-none">
 					<div className="p-4 border-b border-gray-50 space-y-2">
 						<div className="relative">
 							<Search
@@ -1368,12 +1417,6 @@ const ManualScheduler = () => {
 									color: "bg-gray-900",
 								},
 								{
-									id: "partial",
-									list: partiallyScheduledCourses,
-									label: "Partial",
-									color: "bg-amber-500",
-								},
-								{
 									id: "scheduled",
 									list: filteredCourseGroups.filter((g) => g.scheduledSections.length > 0),
 									label: "Scheduled",
@@ -1396,7 +1439,6 @@ const ManualScheduler = () => {
 										<p className="text-[10px] font-bold text-gray-300">
 												{sec.list.reduce((total, group) => {
 													if (sec.id === "unscheduled") return total + group.unscheduledSections.length;
-													if (sec.id === "partial") return total + group.partialSections.length;
 													if (sec.id === "scheduled") return total + group.scheduledSections.length;
 													return total;
 												}, 0)} Items
@@ -1418,57 +1460,140 @@ const ManualScheduler = () => {
 												const groupSections =
 													sec.id === "unscheduled"
 														? group.unscheduledSections
-														: sec.id === "partial"
-															? group.partialSections
 															: group.scheduledSections;
+												if (!groupSections.length) return null;
+
+												if (sec.id === "unscheduled") {
+													return groupSections.map((section) => {
+														const colors = getCourseColors(section);
+														return (
+															<div
+																key={getCourseIdentifier(section)}
+																draggable
+																onDragStart={(e) => {
+																	handleDragStart(section, e);
+																}}
+																onDrag={handleDrag}
+																onDragEnd={() => {
+																	isDragging.current = false;
+																	stopAutoScroll();
+																	setDraggedCourse(null);
+																}}
+																className={`p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
+															>
+																<div className={`font-bold text-sm leading-none ${colors.text}`}>
+																	{formatCourseLabel(section)}
+																</div>
+																<div className="text-[10px] text-gray-500 mt-1.5 line-clamp-1">
+																	{section.courseName}
+																</div>
+																{getToleranceCount(section) > 0 && (
+																	<div className="mt-2 inline-flex rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700">
+																		Tolerance: {getToleranceCount(section)}
+																	</div>
+																)}
+																<div className="mt-3 flex items-center gap-3">
+																	<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
+																		<Users size={10} /> {section.studentId.length}
+																	</div>
+																	<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
+																		<Clock size={10} /> {getCourseCredit(section)}
+																	</div>
+																</div>
+															</div>
+														);
+													});
+												}
+
+												if (sec.id === "scheduled") {
+													return groupSections.map((section) => {
+														const colors = getCourseColors(section);
+														return (
+															<div
+																key={getCourseIdentifier(section)}
+																draggable
+																onDragStart={(e) => {
+																	handleDragStart(section, e);
+																}}
+																onDrag={handleDrag}
+																onDragEnd={() => {
+																	isDragging.current = false;
+																	stopAutoScroll();
+																	setDraggedCourse(null);
+																}}
+																className={`group p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
+															>
+															<div className={`font-bold text-sm leading-none ${colors.text}`}>
+																{formatCourseLabel(section)}
+															</div>
+															<div className="text-[10px] text-gray-500 mt-1.5 line-clamp-1">
+																{section.courseName}
+															</div>
+															{getToleranceCount(section) > 0 && (
+																<div className="mt-2 inline-flex rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700">
+																	Tolerance: {getToleranceCount(section)}
+																</div>
+															)}
+															<div className="mt-3 flex items-center gap-3">
+																<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
+																	<Users size={10} /> {section.studentId.length}
+																</div>
+																<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
+																	<Clock size={10} /> {getCourseCredit(section)}
+																</div>
+															</div>
+														</div>
+													);
+													});
+												}
+
 												const representative =
 													groupSections[0] ?? group.sections[0];
 												if (!representative) return null;
 												const colors = getCourseColors(representative);
 												const sectionCount = groupSections.length;
-											return (
-												<div
-													key={group.key}
-													draggable
-													onDragStart={(e) => {
-														// Dragging from the left rail should add a new session, not move an existing one.
-														handleDragStart(representative, e);
-													}}
-												onDrag={handleDrag}
-												onDragEnd={() => {
-													isDragging.current = false;
-													stopAutoScroll();
-													setDraggedCourse(null);
-												}}
-												className={`p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
-											>
-												<div
-													className={`font-bold text-sm leading-none ${colors.text}`}
-												>
-													{formatCourseBaseLabel(representative)}
-												</div>
-												<div className="text-[10px] text-gray-500 mt-1.5 line-clamp-1">
-													{sectionCount === 1
-														? formatCourseLabel(representative)
-														: sec.id === "scheduled"
-															? `${sectionCount} sessions`
-															: `${sectionCount} sections`}
-												</div>
-												{getToleranceCount(representative) > 0 && (
-													<div className="mt-2 inline-flex rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700">
-														Tolerance: {getToleranceCount(representative)}
+												return (
+													<div
+														key={group.key}
+														draggable
+														onDragStart={(e) => {
+															handleDragStart(representative, e);
+														}}
+														onDrag={handleDrag}
+														onDragEnd={() => {
+															isDragging.current = false;
+															stopAutoScroll();
+															setDraggedCourse(null);
+														}}
+														className={`p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
+													>
+														<div className={`font-bold text-sm leading-none ${colors.text}`}>
+															{formatCourseBaseLabel(representative)}
+														</div>
+														<div className="text-[10px] text-gray-500 mt-1.5 line-clamp-1">
+															{sec.id === "scheduled"
+																? groupSections
+																	.map((section) => formatCourseLabel(section))
+																	.join(", ")
+																: sectionCount === 1
+																	? `${representative.courseName} (${formatCourseLabel(representative)})`
+																	: `${sectionCount} sections`}
+														</div>
+														{getToleranceCount(representative) > 0 && (
+															<div className="mt-2 inline-flex rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700">
+																Tolerance: {getToleranceCount(representative)}
+															</div>
+														)}
+														<div className="mt-3 flex items-center gap-3">
+															<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
+																<Users size={10} /> {representative.studentId.length}
+															</div>
+															<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
+																<Clock size={10} /> {getCourseCredit(representative)}
+															</div>
+														</div>
 													</div>
-												)}
-												<div className="mt-3 flex items-center gap-3">
-													<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
-														<Users size={10} /> {representative.studentId.length}
-													</div>
-													<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
-														<Clock size={10} /> {getCourseCredit(representative)}
-													</div>
-												</div>
-											</div>
-											);
+												);
 										})}
 									</div>
 								)}
@@ -1489,19 +1614,19 @@ const ManualScheduler = () => {
 							stopAutoScroll();
 						}
 					}}
-					className="flex-1 p-4 bg-gray-50/50 overflow-auto no-scrollbar"
+					className="flex-1 min-w-0 p-3 sm:p-4 bg-gray-50/50 overflow-auto no-scrollbar"
 				>
 					<div className="bg-white rounded-3xl border border-gray-100 shadow-sm">
-						<table className="w-full border-collapse">
+						<table className="w-full min-w-[980px] lg:min-w-[1180px] table-fixed border-collapse">
 							<thead>
 								<tr className="bg-white border-b border-gray-100">
-									<th className="p-4 text-left sticky left-0 bg-white z-10 w-24">
+									<th className="p-3 sm:p-4 text-left sticky left-0 bg-white z-10 w-20 sm:w-24">
 										<span className="eyebrow-label text-gray-200">Time</span>
 									</th>
 									{DAYS.map((day) => (
 										<th
 											key={day}
-											className="p-4 text-center min-w-[200px] border-l border-gray-50"
+											className="p-3 sm:p-4 text-center min-w-[140px] sm:min-w-[170px] lg:min-w-[190px] border-l border-gray-50"
 										>
 											<span className="eyebrow-label text-gray-700">
 												{DAY_FULL[day]}
@@ -1516,7 +1641,7 @@ const ManualScheduler = () => {
 										key={`${startTime}|${endTime}`}
 										className={`${rowIdx % 2 === 0 ? "bg-white" : "bg-gray-50/30"} border-b border-gray-50 last:border-0`}
 									>
-										<td className="p-4 sticky left-0 bg-inherit z-10 border-r border-gray-100">
+										<td className="p-3 sm:p-4 sticky left-0 bg-inherit z-10 border-r border-gray-100">
 											<div className="text-xs font-bold text-gray-900">
 												{startTime}
 											</div>
@@ -1548,7 +1673,7 @@ const ManualScheduler = () => {
 													onDrop={(e) =>
 														handleDropOnSlot(e, day, startTime, endTime)
 													}
-													className="p-2 align-top border-l border-gray-50 min-h-24"
+													className="p-2 align-top border-l border-gray-50 min-h-[88px]"
 												>
 													{cellCourses.length > 0 ? (
 														<div className="space-y-1.5">
@@ -1581,7 +1706,7 @@ const ManualScheduler = () => {
 																				endTime,
 																			)
 																		}
-																		className={`p-2.5 rounded-xl border border-gray-200/50 shadow-sm cursor-grab active:scale-[0.98] transition-all ${colors.bg} ${colors.text} hover:border-gray-300`}
+																		className={`group p-2.5 rounded-xl border border-gray-200/50 shadow-sm cursor-grab active:scale-[0.98] transition-all ${colors.bg} ${colors.text} hover:border-gray-300`}
 																	>
 																		<div className="font-bold text-[10px] leading-tight flex justify-between gap-2">
 																			<span>{formatCourseLabel(c)}</span>
@@ -1589,6 +1714,7 @@ const ManualScheduler = () => {
 																				onClick={(e) => {
 																					e.stopPropagation();
 																					setDeletingCourseId(c.courseId);
+																					setDeletingCourseLookupId(getCourseIdentifier(c));
 																					setDeletingSlotInfo({
 																						day,
 																						startTime,
@@ -1845,19 +1971,39 @@ const ManualScheduler = () => {
 						</div>
 						<h3 className="section-title">Remove Session?</h3>
 						<p className="body-sm mt-3 text-gray-400">
-							Confirm removal of <strong>{deletingCourseId}</strong> from this
+							Confirm removal of <strong>{deletingCourseLabel}</strong> from this
 							timeslot.
 						</p>
+						{isScheduling && (
+							<div className="mt-5 rounded-xl border border-red-100 bg-red-50/60 p-3 text-left">
+								<div className="text-[10px] font-black uppercase tracking-[0.2em] text-red-700">
+									Processing deletion
+								</div>
+								<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-red-100">
+									<div
+										className="h-full w-1/3 rounded-full bg-gradient-to-r from-red-500 via-red-400 to-red-300"
+										style={{ animation: "loading-bar 1.1s ease-in-out infinite" }}
+									/>
+								</div>
+							</div>
+						)}
 						<div className="mt-8 flex flex-col gap-2">
 							<button
 								onClick={handleDeleteCourseConfirm}
-								className="btn-primary bg-red-600 hover:bg-red-700 w-full py-3"
+								disabled={isScheduling}
+								className="btn-primary bg-red-600 hover:bg-red-700 w-full py-3 disabled:opacity-60 disabled:cursor-not-allowed"
 							>
-								Confirm Deletion
+								{isScheduling ? "Processing..." : "Confirm Deletion"}
 							</button>
 							<button
-								onClick={() => setShowDeleteConfirm(false)}
-								className="btn-outline w-full py-3"
+								onClick={() => {
+									setShowDeleteConfirm(false);
+									setDeletingCourseId(null);
+									setDeletingCourseLookupId(null);
+									setDeletingSlotInfo(null);
+								}}
+								disabled={isScheduling}
+								className="btn-outline w-full py-3 disabled:opacity-60 disabled:cursor-not-allowed"
 							>
 								Cancel
 							</button>

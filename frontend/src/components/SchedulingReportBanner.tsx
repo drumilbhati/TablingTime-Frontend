@@ -54,6 +54,9 @@ const SchedulingReportBanner = ({
 	const unscheduledCount = Math.max(report?.summary.unscheduledCourses ?? 0, liveUnscheduledCount);
 	const hasViolations = violationCount > 0;
 	const hasUnscheduled = unscheduledCount > 0;
+	const liveUnscheduledCourses = courses.filter(
+		(course) => !(course.timeslots && course.timeslots.length > 0),
+	);
 
 	if (!report || (!hasViolations && !hasUnscheduled)) {
 		return null;
@@ -262,7 +265,7 @@ const SchedulingReportBanner = ({
 					</div>
 				)}
 
-				{hasUnscheduled && report.unscheduledCourses && (
+				{hasUnscheduled && (
 					<div className="space-y-3 pt-2">
 						<button
 							onClick={() => setIsUnscheduledExpanded(!isUnscheduledExpanded)}
@@ -280,9 +283,18 @@ const SchedulingReportBanner = ({
 
 						{isUnscheduledExpanded && (
 							<div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 animate-in fade-in slide-in-from-top-2 duration-200">
-								{report.unscheduledCourses.map((course) => (
+								{(report.unscheduledCourses?.length
+									? report.unscheduledCourses
+									: liveUnscheduledCourses.map((course) => ({
+										courseId: course.courseId,
+										courseCode: course.courseCode,
+										courseName: course.courseName,
+										courseType: course.courseType,
+										reasonCodes: ["Not scheduled"],
+									}))
+								).map((course, index) => (
 									<div
-										key={course.courseId}
+										key={`${course.courseId}-${course.courseCode ?? course.courseName ?? "unscheduled"}-${index}`}
 										className="rounded-xl border border-amber-100 bg-white/60 p-3"
 									>
 										<div className="flex items-start justify-between gap-2">

@@ -41,7 +41,7 @@ const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
 	}
 
 	return (
-		<div className="p-4 flex flex-col h-full bg-white">
+		<div className="p-3 sm:p-4 flex flex-col h-full min-h-0 bg-white">
 			{/* Header */}
 			<div className="mb-4">
 				<h2 className="section-title">Courses</h2>
@@ -73,7 +73,7 @@ const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
 
 			{/* Course list */}
 			{loading ? (
-				<div className="space-y-2">
+				<div className="space-y-2 flex-1 overflow-y-auto">
 					{Array.from({ length: 5 }).map((_, i) => (
 						<div
 							key={i}
@@ -82,7 +82,7 @@ const Sidebar = ({ selectedCourse, onSelectCourse }: SidebarProps) => {
 					))}
 				</div>
 			) : filteredCourses.length === 0 ? (
-				<div className="text-sm font-medium text-gray-400 text-center py-10">
+				<div className="text-sm font-medium text-gray-400 text-center py-10 flex-1">
 					No matches found
 				</div>
 			) : (

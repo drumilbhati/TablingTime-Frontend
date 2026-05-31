@@ -229,13 +229,11 @@ const getManualSchedulingIdentifiers = (course: Partial<Course>) => ({
 	displayCourseId: course.displayCourseId,
 });
 
-const hasStudentConflict = (
-	details?: ManualScheduleConflictDetails,
-): boolean =>
+const hasStudentConflict = (details?: ManualScheduleConflictDetails): boolean =>
 	Boolean(
 		details?.student?.hasStudentConflict ||
-			Number(details?.student?.studentConflictCount) > 0 ||
-			(details?.student?.conflicts?.length ?? 0) > 0,
+		Number(details?.student?.studentConflictCount) > 0 ||
+		(details?.student?.conflicts?.length ?? 0) > 0,
 	);
 
 const hasProfessorConflict = (
@@ -243,9 +241,9 @@ const hasProfessorConflict = (
 ): boolean =>
 	Boolean(
 		details?.professor?.hasProfessorConflict ||
-			Number(details?.professor?.professorConflictCount) > 0 ||
-			(details?.professor?.conflicts?.length ?? 0) > 0 ||
-			(details?.professor?.offendingProfessorDetails?.length ?? 0) > 0,
+		Number(details?.professor?.professorConflictCount) > 0 ||
+		(details?.professor?.conflicts?.length ?? 0) > 0 ||
+		(details?.professor?.offendingProfessorDetails?.length ?? 0) > 0,
 	);
 
 const formatElapsed = (seconds: number) => {
@@ -288,12 +286,16 @@ interface PendingManualSchedule {
 const getCourseGroupKey = (course: Course) => {
 	const baseCourse = course as Course & { parentCourseId?: string };
 	return String(
-		baseCourse.parentCourseId || course.courseId || course.courseCode || course._id,
+		baseCourse.parentCourseId ||
+			course.courseId ||
+			course.courseCode ||
+			course._id,
 	);
 };
 
 const getSectionSortKey = (section: Course) => {
-	const raw = section.section ?? section.displayCourseId ?? section.sectionId ?? "";
+	const raw =
+		section.section ?? section.displayCourseId ?? section.sectionId ?? "";
 	const numeric = Number.parseInt(String(raw).replace(/\D+/g, ""), 10);
 	return Number.isNaN(numeric) ? String(raw) : String(numeric).padStart(4, "0");
 };
@@ -353,8 +355,8 @@ const buildCourseGroups = (items: Course[]): CourseGroup[] => {
 			group.Faculty,
 			group.courseSchool,
 			...sections.map((course) => formatCourseLabel(course)),
-		].
-			filter(Boolean)
+		]
+			.filter(Boolean)
 			.join(" ")
 			.toLowerCase();
 
@@ -376,7 +378,8 @@ const ManualScheduler = () => {
 		refetch,
 	} = useCourses();
 	const { userRole } = useAuth();
-	const { latestReport, refreshLatestReport, reportLoading } = useSchedulingReport();
+	const { latestReport, refreshLatestReport, reportLoading } =
+		useSchedulingReport();
 	const [displayCourses, setDisplayCourses] = useState<Course[]>([]);
 	const [slots, setSlots] = useState<Slot[]>([]);
 	const [pendingManualSchedule, setPendingManualSchedule] =
@@ -562,15 +565,15 @@ const ManualScheduler = () => {
 
 			if (clientX > rect.right - horizontalEdgeSize) {
 				x = clamp(
-					((clientX - (rect.right - horizontalEdgeSize)) /
-						horizontalEdgeSize) *
+					((clientX - (rect.right - horizontalEdgeSize)) / horizontalEdgeSize) *
 						maxSpeed,
 				);
 			} else if (clientX < rect.left + horizontalEdgeSize) {
 				x = clamp(
-					-(((rect.left + horizontalEdgeSize - clientX) /
-						horizontalEdgeSize) *
-						maxSpeed),
+					-(
+						((rect.left + horizontalEdgeSize - clientX) / horizontalEdgeSize) *
+						maxSpeed
+					),
 				);
 			}
 
@@ -603,7 +606,8 @@ const ManualScheduler = () => {
 			let nextSpeed = 0;
 
 			if (clientY > bottomActivationY) {
-				const ratio = (clientY - bottomActivationY) / (height - bottomActivationY);
+				const ratio =
+					(clientY - bottomActivationY) / (height - bottomActivationY);
 				nextSpeed = minSpeed + ratio * (maxSpeed - minSpeed);
 			} else if (clientY < topActivationY) {
 				const ratio = (topActivationY - clientY) / topActivationY;
@@ -650,8 +654,7 @@ const ManualScheduler = () => {
 		window.addEventListener("wheel", handleWheelWhileDragging, {
 			passive: false,
 		});
-		return () =>
-			window.removeEventListener("wheel", handleWheelWhileDragging);
+		return () => window.removeEventListener("wheel", handleWheelWhileDragging);
 	}, []);
 
 	useEffect(() => {
@@ -689,23 +692,21 @@ const ManualScheduler = () => {
 		[stopAutoScroll, stopViewportAutoScroll],
 	);
 
-	const toggleSection = useCallback(
-		(section: "unscheduled" | "scheduled") => {
-			setCollapsedSections((current) => ({
-				...current,
-				[section]: !current[section],
-			}));
-		},
-		[],
-	);
+	const toggleSection = useCallback((section: "unscheduled" | "scheduled") => {
+		setCollapsedSections((current) => ({
+			...current,
+			[section]: !current[section],
+		}));
+	}, []);
 
 	useEffect(() => {
 		setDisplayCourses(courses);
 	}, [courses]);
 
-	const groupedCourses = useMemo(() => buildCourseGroups(displayCourses), [
-		displayCourses,
-	]);
+	const groupedCourses = useMemo(
+		() => buildCourseGroups(displayCourses),
+		[displayCourses],
+	);
 
 	const refreshSlots = useCallback(async () => {
 		try {
@@ -752,7 +753,8 @@ const ManualScheduler = () => {
 		const q = searchTerm.trim().toLowerCase();
 		const matchesQuery = q === "" || group.searchText.includes(q);
 		const matchesSchool =
-			schoolFilter === "ALL" || (group.courseSchool || "").toUpperCase() === schoolFilter;
+			schoolFilter === "ALL" ||
+			(group.courseSchool || "").toUpperCase() === schoolFilter;
 		return matchesQuery && matchesSchool;
 	});
 
@@ -830,7 +832,13 @@ const ManualScheduler = () => {
 
 							const nextCourse: Course = { ...course };
 							if (response.course.timeslots) {
-								nextCourse.timeslots = response.course.timeslots;
+								const normalizedTimeslots = response.course.timeslots.map(
+									(slot, index) => ({
+										_id: `${response.course._id}-${slot.day}-${slot.startTime}-${slot.endTime}-${index}`,
+										...slot,
+									}),
+								);
+								nextCourse.timeslots = normalizedTimeslots;
 							}
 							if (response.course.timing) {
 								nextCourse.timing = response.course.timing;
@@ -843,9 +851,7 @@ const ManualScheduler = () => {
 					);
 				}
 				const ignoredMessages = [
-					response.conflictsIgnored?.student
-						? "ignored student conflict"
-						: "",
+					response.conflictsIgnored?.student ? "ignored student conflict" : "",
 					response.conflictsIgnored?.professor
 						? "ignored faculty conflict"
 						: "",
@@ -1104,7 +1110,8 @@ const ManualScheduler = () => {
 	const handleRoomSelect = async (roomNumber: string) => {
 		if (!roomSelectorCourse || !selectedSlot) return;
 		const courseIdentifier = getCourseIdentifier(roomSelectorCourse);
-		const manualIdentifiers = getManualSchedulingIdentifiers(roomSelectorCourse);
+		const manualIdentifiers =
+			getManualSchedulingIdentifiers(roomSelectorCourse);
 		if (!courseIdentifier) {
 			setSchedulingError("Could not resolve course identifier for scheduling.");
 			return;
@@ -1160,7 +1167,10 @@ const ManualScheduler = () => {
 		return <ErrorState error={coursesError} onRetry={refetch} />;
 
 	const timeslots = getUniqueTimeslots();
-	const isInitialPageLoading = (coursesLoading || reportLoading) && status.type !== "loading" && !isScheduling;
+	const isInitialPageLoading =
+		(coursesLoading || reportLoading) &&
+		status.type !== "loading" &&
+		!isScheduling;
 	const conflictDetails = pendingManualSchedule?.conflict.conflictDetails;
 	const studentConflictExists = hasStudentConflict(conflictDetails);
 	const professorConflictExists = hasProfessorConflict(conflictDetails);
@@ -1209,19 +1219,20 @@ const ManualScheduler = () => {
 							Loading timetable data
 						</h2>
 						<p className="mt-2 text-sm leading-6 text-gray-500">
-							We’re refreshing courses and scheduling reports. The page will stay visible while the backend finishes.
+							We’re refreshing courses and scheduling reports. The page will
+							stay visible while the backend finishes.
 						</p>
-							<div className="mt-6 h-2 overflow-hidden rounded-full bg-gray-100">
-								<div
-									className="h-full w-1/3 rounded-full bg-gradient-to-r from-black via-gray-500 to-amber-400"
-									style={{ animation: "loading-bar 1.5s ease-in-out infinite" }}
-								/>
+						<div className="mt-6 h-2 overflow-hidden rounded-full bg-gray-100">
+							<div
+								className="h-full w-1/3 rounded-full bg-gradient-to-r from-black via-gray-500 to-amber-400"
+								style={{ animation: "loading-bar 1.5s ease-in-out infinite" }}
+							/>
 						</div>
-							{autoRunStartedAt !== null && (
-								<div className="pt-3 text-[10px] font-bold uppercase tracking-[0.3em] text-gray-400">
-									Running for {formatElapsed(autoRunElapsedSeconds)}
-								</div>
-							)}
+						{autoRunStartedAt !== null && (
+							<div className="pt-3 text-[10px] font-bold uppercase tracking-[0.3em] text-gray-400">
+								Running for {formatElapsed(autoRunElapsedSeconds)}
+							</div>
+						)}
 					</div>
 				</div>
 			)}
@@ -1241,8 +1252,8 @@ const ManualScheduler = () => {
 								Building your timetable
 							</h2>
 							<p className="mt-2 text-sm leading-6 text-gray-500">
-								We’re checking rooms, courses, and professor constraints.
-								This may take a moment while the scheduler algorithm runs.
+								We’re checking rooms, courses, and professor constraints. This
+								may take a moment while the scheduler algorithm runs.
 							</p>
 						</div>
 						<div className="mt-7 space-y-3">
@@ -1406,11 +1417,18 @@ const ManualScheduler = () => {
 								},
 								{
 									id: "scheduled",
-									list: filteredCourseGroups.filter((g) => g.scheduledSections.length > 0),
+									list: filteredCourseGroups.filter(
+										(g) => g.scheduledSections.length > 0,
+									),
 									label: "Scheduled",
 									color: "bg-green-600",
 								},
-							] as const
+							] as Array<{
+								id: "unscheduled" | "scheduled";
+								list: CourseGroup[];
+								label: string;
+								color: string;
+							}>
 						).map((sec) => (
 							<div
 								key={sec.id}
@@ -1425,11 +1443,14 @@ const ManualScheduler = () => {
 											{sec.label}
 										</h4>
 										<p className="text-[10px] font-bold text-gray-300">
-												{sec.list.reduce((total, group) => {
-													if (sec.id === "unscheduled") return total + group.unscheduledSections.length;
-													if (sec.id === "scheduled") return total + group.scheduledSections.length;
-													return total;
-												}, 0)} Items
+											{sec.list.reduce((total, group) => {
+												if (sec.id === "unscheduled")
+													return total + group.unscheduledSections.length;
+												if (sec.id === "scheduled")
+													return total + group.scheduledSections.length;
+												return total;
+											}, 0)}{" "}
+											Items
 										</p>
 									</div>
 									<div
@@ -1444,77 +1465,37 @@ const ManualScheduler = () => {
 								</button>
 								{!collapsedSections[sec.id] && (
 									<div className="p-3 pt-0 space-y-1.5 animate-in fade-in duration-300">
-											{sec.list.map((group) => {
-												const groupSections =
-													sec.id === "unscheduled"
-														? group.unscheduledSections
-															: group.scheduledSections;
-												if (!groupSections.length) return null;
+										{sec.list.map((group) => {
+											const groupSections =
+												sec.id === "unscheduled"
+													? group.unscheduledSections
+													: group.scheduledSections;
+											if (!groupSections.length) return null;
 
-												if (sec.id === "unscheduled") {
-													return groupSections.map((section) => {
-														const colors = getCourseColors(section);
-														return (
+											if (sec.id === "unscheduled") {
+												return groupSections.map((section) => {
+													const colors = getCourseColors(section);
+													return (
+														<div
+															key={getCourseIdentifier(section)}
+															draggable
+															onDragStart={(e) => {
+																handleDragStart(section, e);
+															}}
+															onDrag={handleDrag}
+															onDragEnd={() => {
+																isDragging.current = false;
+																stopAutoScroll();
+																setDraggedCourse(null);
+															}}
+															className={`min-w-0 overflow-hidden p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
+														>
 															<div
-																key={getCourseIdentifier(section)}
-																draggable
-																onDragStart={(e) => {
-																	handleDragStart(section, e);
-																}}
-																onDrag={handleDrag}
-																onDragEnd={() => {
-																	isDragging.current = false;
-																	stopAutoScroll();
-																	setDraggedCourse(null);
-																}}
-																className={`min-w-0 overflow-hidden p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
+																className={`min-w-0 break-words font-bold text-sm leading-tight ${colors.text}`}
 															>
-																<div className={`min-w-0 break-words font-bold text-sm leading-tight ${colors.text}`}>
-																	{formatCourseLabel(section)}
-																</div>
-																<div className="min-w-0 break-words text-[10px] text-gray-500 mt-1.5 line-clamp-1">
-																	{section.courseName}
-																</div>
-																{getToleranceCount(section) > 0 && (
-																	<div className="mt-2 inline-flex rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700">
-																		Tolerance: {getToleranceCount(section)}
-																	</div>
-																)}
-																<div className="mt-3 flex items-center gap-3">
-																	<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
-																		<Users size={10} /> {section.studentId.length}
-																	</div>
-																	<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
-																		<Clock size={10} /> {getCourseCredit(section)}
-																	</div>
-																</div>
-															</div>
-														);
-													});
-												}
-
-												if (sec.id === "scheduled") {
-													return groupSections.map((section) => {
-														const colors = getCourseColors(section);
-														return (
-															<div
-																key={getCourseIdentifier(section)}
-																draggable
-																onDragStart={(e) => {
-																	handleDragStart(section, e);
-																}}
-																onDrag={handleDrag}
-																onDragEnd={() => {
-																	isDragging.current = false;
-																	stopAutoScroll();
-																	setDraggedCourse(null);
-																}}
-																className={`group min-w-0 overflow-hidden p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
-															>
-																<div className={`min-w-0 break-words font-bold text-sm leading-tight ${colors.text}`}>
 																{formatCourseLabel(section)}
 															</div>
-																<div className="min-w-0 break-words text-[10px] text-gray-500 mt-1.5 line-clamp-1">
+															<div className="min-w-0 break-words text-[10px] text-gray-500 mt-1.5 line-clamp-1">
 																{section.courseName}
 															</div>
 															{getToleranceCount(section) > 0 && (
@@ -1532,56 +1513,104 @@ const ManualScheduler = () => {
 															</div>
 														</div>
 													);
-													});
-												}
+												});
+											}
 
-												const representative =
-													groupSections[0] ?? group.sections[0];
-												if (!representative) return null;
-												const colors = getCourseColors(representative);
-												const sectionCount = groupSections.length;
-												return (
-													<div
-														key={group.key}
-														draggable
-														onDragStart={(e) => {
-															handleDragStart(representative, e);
-														}}
-														onDrag={handleDrag}
-														onDragEnd={() => {
-															isDragging.current = false;
-															stopAutoScroll();
-															setDraggedCourse(null);
-														}}
-														className={`min-w-0 overflow-hidden p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
-													>
-														<div className={`min-w-0 break-words font-bold text-sm leading-tight ${colors.text}`}>
-															{formatCourseBaseLabel(representative)}
+											if (sec.id === "scheduled") {
+												return groupSections.map((section) => {
+													const colors = getCourseColors(section);
+													return (
+														<div
+															key={getCourseIdentifier(section)}
+															draggable
+															onDragStart={(e) => {
+																handleDragStart(section, e);
+															}}
+															onDrag={handleDrag}
+															onDragEnd={() => {
+																isDragging.current = false;
+																stopAutoScroll();
+																setDraggedCourse(null);
+															}}
+															className={`group min-w-0 overflow-hidden p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
+														>
+															<div
+																className={`min-w-0 break-words font-bold text-sm leading-tight ${colors.text}`}
+															>
+																{formatCourseLabel(section)}
+															</div>
+															<div className="min-w-0 break-words text-[10px] text-gray-500 mt-1.5 line-clamp-1">
+																{section.courseName}
+															</div>
+															{getToleranceCount(section) > 0 && (
+																<div className="mt-2 inline-flex rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700">
+																	Tolerance: {getToleranceCount(section)}
+																</div>
+															)}
+															<div className="mt-3 flex items-center gap-3">
+																<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
+																	<Users size={10} /> {section.studentId.length}
+																</div>
+																<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
+																	<Clock size={10} /> {getCourseCredit(section)}
+																</div>
+															</div>
 														</div>
-														<div className="min-w-0 break-words text-[10px] text-gray-500 mt-1.5 line-clamp-1">
-															{sec.id === "scheduled"
-																? groupSections
+													);
+												});
+											}
+
+											const representative =
+												groupSections[0] ?? group.sections[0];
+											if (!representative) return null;
+											const colors = getCourseColors(representative);
+											const sectionCount = groupSections.length;
+											return (
+												<div
+													key={group.key}
+													draggable
+													onDragStart={(e) => {
+														handleDragStart(representative, e);
+													}}
+													onDrag={handleDrag}
+													onDragEnd={() => {
+														isDragging.current = false;
+														stopAutoScroll();
+														setDraggedCourse(null);
+													}}
+													className={`min-w-0 overflow-hidden p-3 rounded-xl border transition-all cursor-grab active:scale-95 hover:shadow-sm ${colors.bg} ${colors.border} ${colors.hoverBg}`}
+												>
+													<div
+														className={`min-w-0 break-words font-bold text-sm leading-tight ${colors.text}`}
+													>
+														{formatCourseBaseLabel(representative)}
+													</div>
+													<div className="min-w-0 break-words text-[10px] text-gray-500 mt-1.5 line-clamp-1">
+														{sec.id === "scheduled"
+															? groupSections
 																	.map((section) => formatCourseLabel(section))
 																	.join(", ")
-																: sectionCount === 1
-																	? `${representative.courseName} (${formatCourseLabel(representative)})`
-																	: `${sectionCount} sections`}
+															: sectionCount === 1
+																? `${representative.courseName} (${formatCourseLabel(representative)})`
+																: `${sectionCount} sections`}
+													</div>
+													{getToleranceCount(representative) > 0 && (
+														<div className="mt-2 inline-flex rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700">
+															Tolerance: {getToleranceCount(representative)}
 														</div>
-														{getToleranceCount(representative) > 0 && (
-															<div className="mt-2 inline-flex rounded-full bg-white/70 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-amber-700">
-																Tolerance: {getToleranceCount(representative)}
-															</div>
-														)}
-														<div className="mt-3 flex items-center gap-3">
-															<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
-																<Users size={10} /> {representative.studentId.length}
-															</div>
-															<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
-																<Clock size={10} /> {getCourseCredit(representative)}
-															</div>
+													)}
+													<div className="mt-3 flex items-center gap-3">
+														<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
+															<Users size={10} />{" "}
+															{representative.studentId.length}
+														</div>
+														<div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 uppercase">
+															<Clock size={10} />{" "}
+															{getCourseCredit(representative)}
 														</div>
 													</div>
-												);
+												</div>
+											);
 										})}
 									</div>
 								)}
@@ -1697,12 +1726,16 @@ const ManualScheduler = () => {
 																		className={`group min-w-0 overflow-hidden p-2.5 rounded-xl border border-gray-200/50 shadow-sm cursor-grab active:scale-[0.98] transition-all ${colors.bg} ${colors.text} hover:border-gray-300`}
 																	>
 																		<div className="font-bold text-[10px] leading-tight flex justify-between gap-2">
-																			<span className="min-w-0 break-words">{formatCourseLabel(c)}</span>
+																			<span className="min-w-0 break-words">
+																				{formatCourseLabel(c)}
+																			</span>
 																			<button
 																				onClick={(e) => {
 																					e.stopPropagation();
 																					setDeletingCourseId(c.courseId);
-																					setDeletingCourseLookupId(getCourseIdentifier(c));
+																					setDeletingCourseLookupId(
+																						getCourseIdentifier(c),
+																					);
 																					setDeletingSlotInfo({
 																						day,
 																						startTime,
@@ -1855,8 +1888,8 @@ const ManualScheduler = () => {
 									</div>
 									<div className="mt-3 flex flex-wrap gap-2">
 										{(
-											conflictDetails?.professor
-												?.offendingProfessorDetails ?? []
+											conflictDetails?.professor?.offendingProfessorDetails ??
+											[]
 										).map((professor) => (
 											<div
 												key={professor.professorId}
@@ -1872,19 +1905,18 @@ const ManualScheduler = () => {
 										))}
 										{(conflictDetails?.professor?.offendingProfessorDetails
 											?.length ?? 0) === 0 &&
-											(conflictDetails?.professor?.offendingProfessors ?? []).map(
-												(professorId) => (
-													<div
-														key={professorId}
-														className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-950"
-													>
-														{professorId}
-													</div>
-												),
-											)}
+											(
+												conflictDetails?.professor?.offendingProfessors ?? []
+											).map((professorId) => (
+												<div
+													key={professorId}
+													className="rounded-xl bg-red-50 px-3 py-2 text-xs font-bold text-red-950"
+												>
+													{professorId}
+												</div>
+											))}
 									</div>
-									{(conflictDetails?.professor?.conflicts?.length ?? 0) >
-										0 && (
+									{(conflictDetails?.professor?.conflicts?.length ?? 0) > 0 && (
 										<div className="mt-4 space-y-2">
 											{conflictDetails?.professor?.conflicts?.map(
 												(conflict, index) => (
@@ -1893,7 +1925,8 @@ const ManualScheduler = () => {
 														className="rounded-xl bg-red-50/70 px-3 py-2 text-xs text-red-950"
 													>
 														<div className="font-bold">
-															{conflict.conflictingCourseId || "Conflicting course"}
+															{conflict.conflictingCourseId ||
+																"Conflicting course"}
 															{conflict.conflictingSection ||
 															conflict.conflictingSectionId
 																? ` · Section ${conflict.conflictingSection ?? conflict.conflictingSectionId}`
@@ -1959,8 +1992,8 @@ const ManualScheduler = () => {
 						</div>
 						<h3 className="section-title">Remove Session?</h3>
 						<p className="body-sm mt-3 text-gray-400">
-							Confirm removal of <strong>{deletingCourseLabel}</strong> from this
-							timeslot.
+							Confirm removal of <strong>{deletingCourseLabel}</strong> from
+							this timeslot.
 						</p>
 						{isScheduling && (
 							<div className="mt-5 rounded-xl border border-red-100 bg-red-50/60 p-3 text-left">
@@ -1970,7 +2003,9 @@ const ManualScheduler = () => {
 								<div className="mt-2 h-1.5 overflow-hidden rounded-full bg-red-100">
 									<div
 										className="h-full w-1/3 rounded-full bg-gradient-to-r from-red-500 via-red-400 to-red-300"
-										style={{ animation: "loading-bar 1.1s ease-in-out infinite" }}
+										style={{
+											animation: "loading-bar 1.1s ease-in-out infinite",
+										}}
 									/>
 								</div>
 							</div>

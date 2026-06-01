@@ -15,6 +15,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 import { AuthProvider } from "./context/AuthContext.tsx";
 import { CoursesProvider } from "./context/CoursesContext.tsx";
 import { SchedulingReportProvider } from "./context/SchedulingReportContext.tsx";
+import { NotificationProvider } from "./context/NotificationContext";
 import { useAuth } from "./context/AuthContext.tsx";
 import SessionLoadingScreen from "./components/SessionLoadingScreen";
 import ScrollToTop from "./components/ScrollToTop";
@@ -41,6 +42,7 @@ function App() {
 	return (
 		<GoogleOAuthProvider clientId="169828270266-4rvkkr0t2p9l1l8g74akau8k5e4peprn.apps.googleusercontent.com">
 			<AuthProvider>
+				<NotificationProvider>
 				<SchedulingReportProvider>
 					<CoursesProvider>
 						<div className="min-h-screen">
@@ -108,6 +110,7 @@ function App() {
 						</div>
 					</CoursesProvider>
 				</SchedulingReportProvider>
+				</NotificationProvider>
 			</AuthProvider>
 		</GoogleOAuthProvider>
 	);

@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import BellNotifications from "./BellNotifications";
 
 const Navbar = () => {
 	const navigate = useNavigate();
@@ -95,6 +96,8 @@ const Navbar = () => {
 						<div className="w-20 h-8 bg-gray-50 rounded animate-pulse" />
 					) : isAuthenticated ? (
 						<div className="flex min-w-0 items-center gap-4 border-l border-gray-100 pl-4">
+							{/* Bell notifications */}
+							<BellNotifications />
 							{/* Name + role */}
 							<div className="flex min-w-0 max-w-[14rem] flex-col items-end">
 								{userName && (

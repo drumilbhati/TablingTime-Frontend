@@ -24,6 +24,7 @@ import { getCourseColors } from "../lib/courseColors";
 import { formatCourseBaseLabel, formatCourseLabel } from "../lib/courseLabels";
 import { getCourseCredit } from "../lib/courseUtils";
 import schedulingService from "../services/schedulingService";
+import { codeToTimeRange } from "../lib/slotUtils";
 import type {
 	ManualScheduleConflictDetails,
 	ManualSchedulingAction,
@@ -1934,7 +1935,7 @@ const ManualScheduler = () => {
 														</div>
 														{conflict.sharedSlots?.length ? (
 															<div className="mt-1 text-red-700">
-																Shared slots: {conflict.sharedSlots.join(", ")}
+																Shared slots: {conflict.sharedSlots.map((c) => codeToTimeRange(c)).join(", ")}
 															</div>
 														) : null}
 													</div>

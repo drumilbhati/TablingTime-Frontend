@@ -1796,6 +1796,7 @@ const ManualScheduler = () => {
 				isLoading={isScheduling}
 				isReplace={roomSelectorIsReplace}
 				sourceSlot={roomSelectorSource}
+				destinationDay={selectedDropDay}
 			/>
 
 			{pendingManualSchedule && (

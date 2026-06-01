@@ -15,6 +15,7 @@ interface RoomSelectorProps {
   error?: string | null;
   isReplace?: boolean;
   sourceSlot?: { day: string; startTime: string; endTime: string } | null;
+  destinationDay?: string | null;
 }
 
 const DAY_FULL: Record<string, string> = {
@@ -77,6 +78,7 @@ const RoomSelector = ({
   error: actionError = null,
   isReplace = false,
   sourceSlot = null,
+  destinationDay: propDestinationDay = null,
 }: RoomSelectorProps) => {
   const [availableRooms, setAvailableRooms] = useState<Room[]>([]);
   const [fetchLoading, setFetchLoading] = useState(false);
@@ -163,6 +165,7 @@ const RoomSelector = ({
 
   const toleranceCount = Number(course?.toleranceCount);
   const shouldShowTolerance = Number.isFinite(toleranceCount) && toleranceCount > 0;
+  const destinationDay = (propDestinationDay ?? (slot?.days && slot.days.length > 0 ? slot.days[0] : undefined)) ? normalizeDayLabel((propDestinationDay ?? (slot?.days && slot.days.length > 0 ? slot.days[0] : undefined)) as string) : undefined;
 
   if (!isReady || !course || !slot) {
     return null;
@@ -189,16 +192,25 @@ const RoomSelector = ({
             </h2>
             <p className="text-sm text-gray-600 mt-1">
                 {isReplace ? (
-                  <>
-                    Move <strong>{formatCourseLabel(course)}</strong> to {sourceSlot?.day ? normalizeDayLabel(sourceSlot.day) : slot.days.map(normalizeDayLabel).join(", ")} 
-                    from {slot.startTime} to {slot.endTime}
-                  </>
-                ) : (
-                  <>
-                    Choose a room for {formatCourseLabel(course)} on {sourceSlot?.day ? normalizeDayLabel(sourceSlot.day) : slot.days.map(normalizeDayLabel).join(", ")} from{" "}
-                    {slot.startTime} to {slot.endTime}
-                  </>
-                )}
+                      <>
+                        Move <strong>{formatCourseLabel(course)}</strong>
+                        {sourceSlot ? (
+                          <span>
+                            {' '}from {normalizeDayLabel(sourceSlot.day)} {sourceSlot.startTime} to {sourceSlot.endTime}
+                            {' '}to {destinationDay ?? slot.days.map(normalizeDayLabel).join(", ")} {slot.startTime} to {slot.endTime}
+                          </span>
+                        ) : (
+                          <span>
+                            {' '}to {destinationDay ?? slot.days.map(normalizeDayLabel).join(", ")} from {slot.startTime} to {slot.endTime}
+                          </span>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        Choose a room for {formatCourseLabel(course)} on {destinationDay ?? slot.days.map(normalizeDayLabel).join(", ")} from{' '}
+                        {slot.startTime} to {slot.endTime}
+                      </>
+                    )}
             </p>
           </div>
           <button
@@ -245,11 +257,11 @@ const RoomSelector = ({
             )}
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Day</div>
-              <div className="text-sm font-bold text-gray-900">{sourceSlot?.day ? normalizeDayLabel(sourceSlot.day) : slot.days.map(normalizeDayLabel).join(", ")}</div>
+              <div className="text-sm font-bold text-gray-900">{isReplace && sourceSlot ? `${normalizeDayLabel(sourceSlot.day)} → ${destinationDay ?? slot.days.map(normalizeDayLabel).join(", ")}` : (destinationDay ?? slot.days.map(normalizeDayLabel).join(", "))}</div>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
               <div className="text-[10px] text-gray-500 font-bold uppercase tracking-wider mb-1">Time</div>
-              <div className="text-sm font-bold text-gray-900">{slot.startTime}-{slot.endTime}</div>
+              <div className="text-sm font-bold text-gray-900">{isReplace && sourceSlot ? `${sourceSlot.startTime}-${sourceSlot.endTime} → ${slot.startTime}-${slot.endTime}` : `${slot.startTime}-${slot.endTime}`}</div>
             </div>
           </div>
 

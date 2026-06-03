@@ -1,5 +1,4 @@
-import React from "react";
-
+ 
 interface ConfirmModalProps {
   open: boolean;
   title: string;

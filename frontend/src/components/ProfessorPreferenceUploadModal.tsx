@@ -33,6 +33,17 @@ interface FormatData {
 	notes?: string[];
 }
 
+const GENERIC_NOTES: string[] = [
+	"Use UTF-8 encoding for the CSV file.",
+	"Include column headers exactly: professorId and rawInput.",
+	'If `rawInput` contains multiple lines, enclose the cell in double quotes. Example: "PREFER_DAYS: Mon\\nAVOID_DAYS: Fri".',
+];
+
+function triggerFileInput() {
+	const input = document.getElementById("bulk-preference-input") as HTMLInputElement | null;
+	if (input) input.click();
+}
+
 export default function ProfessorPreferenceUploadModal({
 	onClose,
 	onSuccess,
@@ -49,6 +60,15 @@ export default function ProfessorPreferenceUploadModal({
 			setFile(e.target.files[0]);
 			setStatus({ type: "idle" });
 		}
+	};
+
+	const handleEditFile = () => {
+		triggerFileInput();
+	};
+
+	const handleDeleteFile = () => {
+		setFile(null);
+		setStatus({ type: "idle" });
 	};
 
 	const handleDownloadTemplate = async () => {
@@ -107,13 +127,34 @@ export default function ProfessorPreferenceUploadModal({
 
 				const data = await res.json();
 
-				if (data.exampleRawInput) {
-					data.exampleRawInput = data.exampleRawInput
+				const defaultData = {
+					requiredColumns: ["professorId", "rawInput"],
+					exampleRawInput:
+						"PREFER_DAYS: Mon, Wed\nAVOID_DAYS: Fri\nAVOID_RANGES: 09:00-12:00, 16:00-18:00",
+					notes: [
+						"Use UTF-8 encoding for the CSV file.",
+						"Include column headers exactly: professorId and rawInput.",
+						'If `rawInput` contains multiple lines, enclose the cell in double quotes. Example: "PREFER_DAYS: Mon\\nAVOID_DAYS: Fri".',
+						"After uploading, review the import preview and use the Commit import action to apply changes.",
+						"The importer validates rows and will report parsing or validation errors for problematic rows."
+					],
+				} as FormatData;
+
+				const merged: FormatData = {
+					...defaultData,
+					...data,
+					requiredColumns: data.requiredColumns ?? defaultData.requiredColumns,
+					exampleRawInput: data.exampleRawInput ?? defaultData.exampleRawInput,
+					notes: data.notes && data.notes.length > 0 ? data.notes : defaultData.notes,
+				};
+
+				if (merged.exampleRawInput) {
+					merged.exampleRawInput = merged.exampleRawInput
 						.replace(/P001/g, "Prof001")
 						.replace(/P002/g, "Prof002");
 				}
 
-				setFormatData(data);
+				setFormatData(merged);
 			} catch (err) {
 				setFormatError("Could not load format guide.");
 				console.error(err);
@@ -259,20 +300,34 @@ export default function ProfessorPreferenceUploadModal({
 									{formatData.notes && (
 										<div className="pt-2">
 											<ul className="space-y-1.5">
-												{formatData.notes.map((note: string, idx: number) => (
-													<li
-														key={idx}
-														className="flex gap-2 text-xs font-medium text-indigo-900/60 leading-relaxed"
-													>
-														<span className="text-indigo-400 font-black">
-															•
-														</span>
-														{note}
-													</li>
-												))}
+												{formatData.notes
+													.slice(3) // hide the first 3 server-provided points
+													.map((note: string, idx: number) => (
+														<li
+															key={idx}
+															className="flex gap-2 text-xs font-medium text-indigo-900/60 leading-relaxed"
+														>
+															<span className="text-indigo-400 font-black">•</span>
+															{note}
+														</li>
+													))}
 											</ul>
 										</div>
 									)}
+									<div className="pt-4">
+										<div className="label-caps opacity-60 mb-2">Admin Notes</div>
+										<ul className="space-y-1.5">
+											{GENERIC_NOTES.map((note: string, idx: number) => (
+												<li
+													key={idx}
+													className="flex gap-2 text-xs font-medium text-indigo-900/60 leading-relaxed"
+												>
+													<span className="text-indigo-400 font-black">•</span>
+													{note}
+												</li>
+											))}
+										</ul>
+									</div>
 								</div>
 							) : null}
 						</div>
@@ -307,10 +362,27 @@ export default function ProfessorPreferenceUploadModal({
 								>
 									{file ? file.name : "Select Import File"}
 								</span>
-								{!file && (
+								{!file ? (
 									<span className="body-xs mt-2 font-bold text-slate-300 italic">
 										Click to browse your workstation
 									</span>
+								) : (
+									<div className="mt-2 flex gap-2">
+										<button
+											type="button"
+											onClick={handleEditFile}
+											className="px-3 py-1 text-xs font-bold uppercase tracking-wide text-indigo-600 bg-indigo-50 rounded-md border border-indigo-100"
+										>
+											Edit
+										</button>
+										<button
+											type="button"
+											onClick={handleDeleteFile}
+											className="px-3 py-1 text-xs font-bold uppercase tracking-wide text-rose-600 bg-rose-50 rounded-md border border-rose-100"
+										>
+											Delete
+										</button>
+									</div>
 								)}
 							</label>
 						</div>

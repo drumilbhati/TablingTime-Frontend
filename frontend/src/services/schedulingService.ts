@@ -143,9 +143,10 @@ export interface RoomSchedulePayload {
 }
 
 export interface UpdateCourseSectionsPayload {
-	courseId: string;
-	numberOfSections: number;
+    courseId: string;
+    numberOfSections: number;
 }
+
 
 export interface Slot {
 	_id: string;
@@ -689,6 +690,60 @@ class SchedulingService {
 		}
 
 		return response.json();
+	}
+
+	async deleteAllCourses(): Promise<{ message?: string }> {
+		const token = localStorage.getItem("token");
+		const response = await fetch(buildApiUrl("/api/admin/delete-all-courses"), {
+			method: "DELETE",
+			headers: {
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+		});
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			throw new Error(data?.message ?? `Failed to delete all courses: ${response.status}`);
+		}
+
+		return response.json().catch(() => ({}));
+	}
+
+	async deleteCourse(courseId: string): Promise<{ message?: string }> {
+		const token = localStorage.getItem("token");
+		const response = await fetch(buildApiUrl(`/api/admin/delete-course/${encodeURIComponent(courseId)}`), {
+			method: "DELETE",
+			headers: {
+				...(token ? { Authorization: `Bearer ${token}` } : {}),
+			},
+		});
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			throw new Error(data?.message ?? `Failed to delete course: ${response.status}`);
+		}
+
+		return response.json().catch(() => ({}));
+	}
+
+	async deleteCourseSection(courseId: string, section: string): Promise<{ message?: string }> {
+		const token = localStorage.getItem("token");
+		const response = await fetch(
+			buildApiUrl(`/api/admin/course-section/${encodeURIComponent(courseId)}/${encodeURIComponent(section)}`),
+			{
+				method: "DELETE",
+				headers: {
+					...(token ? { Authorization: `Bearer ${token}` } : {}),
+				},
+			},
+		);
+
+		if (!response.ok) {
+			const data = await response.json().catch(() => ({}));
+			throw new Error(data?.message ?? `Failed to delete course section: ${response.status}`);
+		}
+
+		return response.json().catch(() => ({}));
 	}
 
 	async updateCourseSections(

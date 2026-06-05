@@ -3,6 +3,7 @@ import { Download } from "lucide-react";
 import Sidebar from "../components/Sidebar";
 import Timetable from "../components/Timetable";
 import { useCourses } from "../context/CoursesContext";
+import { buildApiUrl } from "../lib/api";
 
 const Dashboard = () => {
   const { courses, loading } = useCourses();
@@ -15,53 +16,13 @@ const Dashboard = () => {
   }, [selectedCourse, loading, courses]);
 
   const downloadTimetableCsv = () => {
-    if (courses.length === 0) return;
-
-    const headers = [
-      "courseId",
-      "courseName",
-      "section",
-      "professorNames",
-      "timing",
-      "room",
-      "isAllocated",
-    ];
-
-    const rows = courses.map((course) => [
-      course.courseId,
-      course.courseName,
-      course.section || course.sectionId || course.courseSectionId || "",
-      course.professorNames || course.Faculty || "",
-      Array.isArray(course.timing) ? course.timing.join("; ") : "",
-      Array.isArray(course.room)
-        ? course.room
-            .map((entry) => (typeof entry === "string" ? entry : entry.roomNumber || entry.slot || ""))
-            .filter(Boolean)
-            .join("; ")
-        : "",
-      course.isAllocated ? "true" : "false",
-    ]);
-
-    const csv = [headers, ...rows]
-      .map((row) =>
-        row
-          .map((value) => {
-            const escaped = String(value ?? "").replace(/"/g, '""');
-            return `"${escaped}"`;
-          })
-          .join(","),
-      )
-      .join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = window.URL.createObjectURL(blob);
+    const url = buildApiUrl("/api/download/timetable");
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = "timetable.csv";
     document.body.appendChild(anchor);
     anchor.click();
-    window.URL.revokeObjectURL(url);
-    anchor.remove();
+    document.body.removeChild(anchor);
   };
 
   return (

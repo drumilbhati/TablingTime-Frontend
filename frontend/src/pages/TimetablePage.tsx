@@ -5,13 +5,13 @@ import Timetable from "../components/Timetable";
 import { useCourses } from "../context/CoursesContext";
 import { useAuth } from "../context/AuthContext";
 import SessionLoadingScreen from "../components/SessionLoadingScreen";
+import { buildApiUrl } from "../lib/api";
 
 const TimetablePage = () => {
   const { authLoading } = useAuth();
   const { courses, loading } = useCourses();
   const [selectedCourse, setSelectedCourse] = useState<string | null>(null);
 
-  // Fall back to the first available course when none is explicitly selected.
   const activeCourse = useMemo(() => {
     if (selectedCourse !== null) return selectedCourse;
     if (!loading && courses.length > 0) return courses[0].courseId;
@@ -19,53 +19,13 @@ const TimetablePage = () => {
   }, [selectedCourse, loading, courses]);
 
   const downloadTimetableCsv = () => {
-    if (courses.length === 0) return;
-
-    const headers = [
-      "courseId",
-      "courseName",
-      "section",
-      "professorNames",
-      "timing",
-      "room",
-      "isAllocated",
-    ];
-
-    const rows = courses.map((course) => [
-      course.courseId,
-      course.courseName,
-      course.section || course.sectionId || course.courseSectionId || "",
-      course.professorNames || course.Faculty || "",
-      Array.isArray(course.timing) ? course.timing.join("; ") : "",
-      Array.isArray(course.room)
-        ? course.room
-            .map((entry) => (typeof entry === "string" ? entry : entry.roomNumber || entry.slot || ""))
-            .filter(Boolean)
-            .join("; ")
-        : "",
-      course.isAllocated ? "true" : "false",
-    ]);
-
-    const csv = [headers, ...rows]
-      .map((row) =>
-        row
-          .map((value) => {
-            const escaped = String(value ?? "").replace(/"/g, '""');
-            return `"${escaped}"`;
-          })
-          .join(","),
-      )
-      .join("\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = window.URL.createObjectURL(blob);
+    const url = buildApiUrl("/api/download/timetable");
     const anchor = document.createElement("a");
     anchor.href = url;
     anchor.download = "timetable.csv";
     document.body.appendChild(anchor);
     anchor.click();
-    window.URL.revokeObjectURL(url);
-    anchor.remove();
+    document.body.removeChild(anchor);
   };
 
   if (authLoading) {

@@ -231,6 +231,16 @@ const EnrolModal = ({ user, onClose }: { user: User; onClose: () => void }) => {
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 const EnrolmentPage = () => {
+        const downloadStudentsCsv = () => {
+                const url = buildApiUrl("/api/download/students");
+                const anchor = document.createElement("a");
+                anchor.href = url;
+                anchor.download = "student_enrollment.csv";
+                document.body.appendChild(anchor);
+                anchor.click();
+                document.body.removeChild(anchor);
+        };
+
 	const { refetch: refetchCourses } = useCourses();
 	const [users, setUsers] = useState<User[]>([]);
 	const [loading, setLoading] = useState(true);
@@ -352,14 +362,21 @@ const EnrolmentPage = () => {
 	return (
 		<div className="flex min-h-[calc(100svh-73px)] flex-col bg-white">
 			<div className="px-4 sm:px-6 py-5 sm:py-6 border-b border-gray-100 bg-white">
-				<h1 className="page-title">Enrolment Hub</h1>
-				<p className="body-sm text-gray-400 mt-0.5">
-					Manage system data and user course paths.
-				</p>
-			</div>
-
-			<div className="p-4 sm:p-6 bg-gray-50/50 flex-1 overflow-y-auto no-scrollbar pb-20">
-				<div className="max-w-7xl mx-auto w-full">
+                        <div className="px-4 sm:px-6 py-5 sm:py-6 border-b border-gray-100 bg-white flex justify-between items-center">
+                                <div>
+                                        <h1 className="page-title">Enrolment Hub</h1>
+                                        <p className="body-sm text-gray-400 mt-0.5">
+                                                Manage system data and user course paths.
+                                        </p>
+                                </div>
+                                <button
+                                        onClick={downloadStudentsCsv}
+                                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-2 text-xs font-semibold text-gray-700 transition-colors hover:bg-gray-100"
+                                >
+                                        <Download size={14} />
+                                        Download Enrollment
+                                </button>
+                        </div>
 					<div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-10">
 						{CSV_UPLOADS.map((c) => (
 							<CsvCard key={c.id} config={c} />

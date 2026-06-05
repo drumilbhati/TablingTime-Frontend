@@ -3,7 +3,6 @@ import {
 	X,
 	Search,
 	Upload,
-	Download,
 	Trash2,
 	UserCog,
 	Mail,
@@ -505,36 +504,6 @@ const ProfessorPreferences = () => {
 		Record<string, { isStrict: boolean; status: string }>
 	>({});
 
-	const downloadFacultyList = () => {
-		if (users.length === 0) {
-			toast.error("No faculty members to download.");
-			return;
-		}
-
-		const headers = ["professorId", "professorName", "email"];
-		const rows = users.map((user) => [user._id, user.name, user.email]);
-		const csv = [headers, ...rows]
-			.map((row) =>
-				row
-					.map((value) => {
-						const escaped = String(value ?? "").replace(/"/g, '""');
-						return `"${escaped}"`;
-					})
-					.join(","),
-			)
-			.join("\n");
-
-		const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-		const url = window.URL.createObjectURL(blob);
-		const a = document.createElement("a");
-		a.href = url;
-		a.download = "faculty-list.csv";
-		document.body.appendChild(a);
-		a.click();
-		window.URL.revokeObjectURL(url);
-		a.remove();
-	};
-
 	const updateStrictMap = useCallback(
 		(professorId: string, isStrict: boolean) => {
 			setStrictMap((prev) => ({
@@ -646,12 +615,6 @@ const ProfessorPreferences = () => {
 					</p>
 				</div>
 				<div className="flex gap-2">
-					<button
-						onClick={downloadFacultyList}
-						className="px-4 py-2 text-xs rounded-full bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200 transition-colors inline-flex items-center justify-center gap-2"
-					>
-						<Download size={14} /> Download
-					</button>
 					<button
 						onClick={() => setShowResetAllConfirm(true)}
 						className="px-4 py-2 text-xs rounded-full bg-red-600 text-white border border-red-700 hover:bg-red-700 transition-colors inline-flex items-center justify-center gap-2"

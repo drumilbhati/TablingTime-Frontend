@@ -46,6 +46,8 @@ export const CourseDetailsModal = ({
 	const colors = getCourseColors(course);
 	const roomLabel = getRoomLabelForSlot(course, day, startTime, endTime);
 	const toleranceCount = Number(course.toleranceCount);
+	const facultyLabel =
+		course.professorNames?.trim() || course.Faculty?.trim() || "—";
 	const shouldShowTolerance =
 		Number.isFinite(toleranceCount) && toleranceCount > 0;
 
@@ -108,7 +110,7 @@ export const CourseDetailsModal = ({
 								Faculty
 							</div>
 							<div className="min-w-0 break-words text-sm font-black text-gray-900">
-								{course.Faculty || "—"}
+								{facultyLabel}
 							</div>
 						</div>
 						<div className="p-4 bg-slate-50 rounded-2xl border border-slate-100">

@@ -173,6 +173,11 @@ const Timetable = ({ selectedCourse }: TimetableProps) => {
 																<div className="min-w-0 break-words text-[10px] font-medium line-clamp-1 leading-tight text-gray-600">
 																	{course.courseName}
 																</div>
+																{course.professorNames && (
+																	<div className="min-w-0 break-words text-[9px] font-semibold uppercase tracking-wider text-gray-500 line-clamp-1">
+																		{course.professorNames}
+																	</div>
+																)}
 																{shouldShowTolerance && (
 																	<div className="mt-1 text-[9px] font-black uppercase tracking-wider text-amber-700">
 																		Tolerance: {toleranceCount}

@@ -27,6 +27,7 @@ export interface Course {
 	Faculty: string;
 	toleranceCount?: number | string;
 	professorId?: string[];
+	professorNames?: string;
 	Credits?: string | number;
 	credits?: string | number;
 	totalSections?: number;
@@ -190,6 +191,9 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
 				const professorId = Array.isArray(baseCourse.professorId)
 					? baseCourse.professorId.map((id) => String(id))
 					: [];
+				const professorNames = String(
+					baseCourse.professorNames ?? baseCourse.professorName ?? baseCourse.Faculty ?? "",
+				);
 
 				return {
 					...baseCourse,
@@ -210,6 +214,7 @@ export const CoursesProvider: React.FC<{ children: React.ReactNode }> = ({
 					labCredits,
 					toleranceCount: toleranceCount ?? 0,
 					professorId,
+					professorNames,
 					timeslots,
 					room,
 					studentId,

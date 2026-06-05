@@ -312,7 +312,7 @@ const CoursesBySchool: React.FC = () => {
                                       <td className="px-3 py-2 font-semibold">
                                         <button className="font-semibold" onClick={() => { const t = (s.timeslots || [])[0]; if (t) open(s as Course, t.day, t.startTime, t.endTime); else open(s as Course); }}>{getSectionLabel(s)}</button>
                                       </td>
-                                      <td className="px-3 py-2">{Array.isArray(s.professorId) ? s.professorId.length : 0}</td>
+                                      <td className="px-3 py-2">{s.professorNames || (Array.isArray(s.professorId) ? s.professorId.join(", ") : "-")}</td>
                                       <td className="px-3 py-2">{Array.isArray(s.studentId) ? s.studentId.length : 0}</td>
                                       <td className="px-3 py-2">{Number(s.toleranceCount) > 0 ? `Tolerance: ${s.toleranceCount}` : "-"}</td>
                                       <td className="px-3 py-2">{s.isAllocated ? "Yes" : "No"}</td>

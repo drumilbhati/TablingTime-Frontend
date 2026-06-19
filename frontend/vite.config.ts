@@ -4,7 +4,8 @@ import react from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  base: mode === "production" ? "/TablingTime-Frontend/" : "/",
   plugins: [react(), tailwindcss()],
   resolve: {
     alias: {
@@ -16,4 +17,4 @@ export default defineConfig({
     port: 5173,
     allowedHosts: true,
   },
-});
+}));

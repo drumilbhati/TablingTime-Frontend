@@ -15,7 +15,7 @@ export default function Footer() {
       <div className="max-w-6xl mx-auto px-6 py-3.5 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-sm">
         <div className="md:max-w-2xl">
           <div className="text-white font-medium text-sm leading-snug">Transforming complex university scheduling into smarter, seamless academic automation.</div>
-          <div className="text-gray-400 text-[11px] mt-1.5">Designed and developed by</div>
+          <div className="text-gray-400 text-[11px] mt-1.5">Designed and developed by · <span className="text-gray-300">Mentored by Prof. Amit Nanavati</span></div>
         </div>
 
         <ul className="flex flex-wrap gap-x-4 gap-y-2 items-center">
